@@ -138,7 +138,7 @@ make build
 Use the TelemetryFlow RESTful API Generator:
 
 ```bash
-tfo-restapi entity -n Product -f 'name:string,price:float64,stock:int'
+telemetryflow-restapi entity -n Product -f 'name:string,price:float64,stock:int'
 ```
 
 This generates:
