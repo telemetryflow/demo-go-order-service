@@ -1,0 +1,156 @@
+openapi: 3.0.3
+info:
+  title: order-service API
+  description: |
+    order-api - RESTful API with DDD + CQRS Pattern
+
+    ## Architecture
+    This API follows Domain-Driven Design (DDD) with CQRS pattern.
+
+    ## Authentication
+    API uses JWT Bearer token authentication. Include the token in the Authorization header:
+    ```
+    Authorization: Bearer <token>
+    ```
+
+  version: 1.0.0
+  contact:
+    name: API Support
+    email: support@example.com
+  license:
+    name: Apache 2.0
+    url: https://www.apache.org/licenses/LICENSE-2.0
+
+servers:
+  - url: http://localhost:8080
+    description: Development server
+  - url: https://api.example.com
+    description: Production server
+
+tags:
+  - name: Health
+    description: Health check endpoints
+  - name: Auth
+    description: Authentication endpoints
+
+paths:
+  /health:
+    get:
+      tags:
+        - Health
+      summary: Health check
+      description: Returns the health status of the service
+      operationId: health
+      responses:
+        '200':
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+
+  /ready:
+    get:
+      tags:
+        - Health
+      summary: Readiness check
+      description: Returns the readiness status including dependency checks
+      operationId: ready
+      responses:
+        '200':
+          description: Service is ready
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+        '503':
+          description: Service is not ready
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+
+components:
+  schemas:
+    HealthResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          example: healthy
+        timestamp:
+          type: string
+          format: date-time
+        uptime:
+          type: string
+          example: 1h30m45s
+        checks:
+          type: object
+          additionalProperties:
+            type: string
+
+    ErrorResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: false
+        error:
+          type: object
+          properties:
+            code:
+              type: string
+              example: VALIDATION_ERROR
+            message:
+              type: string
+              example: Validation failed
+            details:
+              type: object
+              additionalProperties:
+                type: string
+
+    SuccessResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        message:
+          type: string
+        data:
+          type: object
+
+    PaginatedResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: array
+          items:
+            type: object
+        meta:
+          type: object
+          properties:
+            page:
+              type: integer
+              example: 1
+            page_size:
+              type: integer
+              example: 10
+            total_count:
+              type: integer
+              example: 100
+            total_pages:
+              type: integer
+              example: 10
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT authentication
+
+security:
+  - bearerAuth: []

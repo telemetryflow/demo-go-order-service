@@ -1,0 +1,60 @@
+{
+  "name": "order-service - Development",
+  "values": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8080",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "apiVersion",
+      "value": "v1",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "accessToken",
+      "value": "",
+      "type": "secret",
+      "enabled": true
+    },
+    {
+      "key": "refreshToken",
+      "value": "",
+      "type": "secret",
+      "enabled": true
+    },
+    {
+      "key": "testUserEmail",
+      "value": "test@example.com",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "testUserPassword",
+      "value": "password123",
+      "type": "secret",
+      "enabled": true
+    },
+    {
+      "key": "dbHost",
+      "value": "localhost",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "dbPort",
+      "value": "5432",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "dbName",
+      "value": "orders",
+      "type": "default",
+      "enabled": true
+    }
+  ],
+  "_postman_variable_scope": "environment"
+}

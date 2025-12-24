@@ -1,0 +1,42 @@
+# Binaries
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+/build/
+/dist/
+
+# Test coverage
+*.out
+coverage.html
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Environment
+.env
+.env.local
+*.env
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Vendor (if using vendoring)
+/vendor/
+
+# Temporary files
+tmp/
+*.tmp
+*.log
+
+# Debug
+__debug_bin
+
+# Air hot reload
+.air.toml
