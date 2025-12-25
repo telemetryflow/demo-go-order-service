@@ -1,18 +1,49 @@
-# order-service - Release Pipeline
+# =============================================================================
+# Order Service - Release Workflow
+# =============================================================================
 #
-# This workflow creates releases when a version tag is pushed.
-# It builds binaries for multiple platforms and creates a GitHub release.
+# Order Service - TelemetryFlow Microservices Platform
+# Copyright (c) 2024-2026 DevOpsCorner Indonesia. All rights reserved.
+#
+# This workflow builds and releases Order Service for:
+# - Linux: Binary (amd64, arm64)
+# - Windows: EXE (64-bit)
+# - macOS: Binary (Intel and Apple Silicon)
+# - Docker: Multi-platform images (linux/amd64, linux/arm64)
+#
+# Triggers:
+# - Push tags matching v*.*.*
+# - Manual workflow dispatch
+#
+# =============================================================================
 
 name: Release
 
 on:
   push:
     tags:
-      - 'v*'
+      - 'v*.*.*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to release (e.g., 1.0.0)'
+        required: true
+        default: '1.0.0'
+      prerelease:
+        description: 'Mark as pre-release'
+        required: false
+        type: boolean
+        default: false
 
 env:
   GO_VERSION: '1.24'
   BINARY_NAME: order-service
+  PRODUCT_NAME: Order Service
+  VENDOR: DevOpsCorner Indonesia
+  MAINTAINER: support@telemetryflow.id
+  DESCRIPTION: Order management microservice for the TelemetryFlow platform
+  LICENSE: Apache-2.0
+  HOMEPAGE: https://telemetryflow.id
 
 permissions:
   contents: write
@@ -20,11 +51,42 @@ permissions:
 
 jobs:
   # ===========================================================================
+  # Prepare Release
+  # ===========================================================================
+  prepare:
+    name: Prepare Release
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      commit: ${{ steps.version.outputs.commit }}
+      branch: ${{ steps.version.outputs.branch }}
+      build_time: ${{ steps.version.outputs.build_time }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Determine version
+        id: version
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            VERSION="${{ github.event.inputs.version }}"
+          else
+            VERSION="${GITHUB_REF#refs/tags/v}"
+          fi
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+          echo "commit=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+          echo "branch=$(git rev-parse --abbrev-ref HEAD)" >> $GITHUB_OUTPUT
+          echo "build_time=$(date -u '+%Y-%m-%dT%H:%M:%SZ')" >> $GITHUB_OUTPUT
+
+  # ===========================================================================
   # Run tests before release
   # ===========================================================================
   test:
     name: Pre-release Tests
     runs-on: ubuntu-latest
+    needs: prepare
     services:
       postgres:
         image: postgres:16-alpine
@@ -67,36 +129,18 @@ jobs:
           DB_SSL_MODE: disable
 
   # ===========================================================================
-  # Build binaries for all platforms
+  # Build Linux Binaries
   # ===========================================================================
-  build:
-    name: Build Binaries
+  build-linux:
+    name: Build Linux (${{ matrix.arch }})
     runs-on: ubuntu-latest
-    needs: test
+    needs: [prepare, test]
     strategy:
       matrix:
-        include:
-          - goos: linux
-            goarch: amd64
-            suffix: linux-amd64
-          - goos: linux
-            goarch: arm64
-            suffix: linux-arm64
-          - goos: darwin
-            goarch: amd64
-            suffix: darwin-amd64
-          - goos: darwin
-            goarch: arm64
-            suffix: darwin-arm64
-          - goos: windows
-            goarch: amd64
-            suffix: windows-amd64.exe
-
+        arch: [amd64, arm64]
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
       - name: Set up Go
         uses: actions/setup-go@v5
@@ -104,55 +148,158 @@ jobs:
           go-version: ${{ env.GO_VERSION }}
           cache: true
 
-      - name: Get version
-        id: version
-        run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+      - name: Download dependencies
+        run: make deps
+
+      - name: Build binary
+        run: make ci-build
+        env:
+          GOOS: linux
+          GOARCH: ${{ matrix.arch }}
+          VERSION: ${{ needs.prepare.outputs.version }}
+
+      - name: Prepare artifact
+        run: |
+          mkdir -p dist
+          cp build/${{ env.BINARY_NAME }}-linux-${{ matrix.arch }} dist/
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: binary-linux-${{ matrix.arch }}
+          path: dist/${{ env.BINARY_NAME }}-linux-${{ matrix.arch }}
+          retention-days: 1
+
+  # ===========================================================================
+  # Build Windows Binary
+  # ===========================================================================
+  build-windows:
+    name: Build Windows (amd64)
+    runs-on: ubuntu-latest
+    needs: [prepare, test]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
 
       - name: Download dependencies
         run: make deps
 
       - name: Build binary
+        run: make ci-build
+        env:
+          GOOS: windows
+          GOARCH: amd64
+          VERSION: ${{ needs.prepare.outputs.version }}
+
+      - name: Prepare artifact
         run: |
           mkdir -p dist
-          CGO_ENABLED=0 GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} \
-            go build -ldflags "-s -w \
-              -X 'main.Version=${{ steps.version.outputs.VERSION }}' \
-              -X 'main.GitCommit=${{ github.sha }}' \
-              -X 'main.BuildTime=$(date -u +%Y-%m-%dT%H:%M:%SZ)'" \
-            -o dist/${{ env.BINARY_NAME }}-${{ matrix.suffix }} ./cmd/api
+          cp build/${{ env.BINARY_NAME }}-windows-amd64.exe dist/
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ env.BINARY_NAME }}-${{ matrix.suffix }}
-          path: dist/${{ env.BINARY_NAME }}-${{ matrix.suffix }}
+          name: binary-windows-amd64
+          path: dist/${{ env.BINARY_NAME }}-windows-amd64.exe
           retention-days: 1
 
   # ===========================================================================
-  # Create checksums
+  # Build macOS Binaries
   # ===========================================================================
-  checksum:
-    name: Generate Checksums
-    runs-on: ubuntu-latest
-    needs: build
+  build-macos:
+    name: Build macOS (${{ matrix.arch }})
+    runs-on: macos-latest
+    needs: [prepare, test]
+    strategy:
+      matrix:
+        arch: [amd64, arm64]
     steps:
-      - name: Download all artifacts
-        uses: actions/download-artifact@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
         with:
-          path: dist
-          merge-multiple: true
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
 
-      - name: Generate checksums
+      - name: Download dependencies
+        run: make deps
+
+      - name: Build binary
+        run: make ci-build
+        env:
+          GOOS: darwin
+          GOARCH: ${{ matrix.arch }}
+          VERSION: ${{ needs.prepare.outputs.version }}
+
+      - name: Prepare artifact
         run: |
-          cd dist
-          sha256sum * > checksums.txt
-          cat checksums.txt
+          mkdir -p dist
+          cp build/${{ env.BINARY_NAME }}-darwin-${{ matrix.arch }} dist/
 
-      - name: Upload checksums
+      - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: checksums
-          path: dist/checksums.txt
+          name: binary-darwin-${{ matrix.arch }}
+          path: dist/${{ env.BINARY_NAME }}-darwin-${{ matrix.arch }}
+          retention-days: 1
+
+  # ===========================================================================
+  # Create Tarballs
+  # ===========================================================================
+  package-tarball:
+    name: Create Tarball (${{ matrix.os }}-${{ matrix.arch }})
+    runs-on: ubuntu-latest
+    needs: [prepare, build-linux, build-macos]
+    strategy:
+      matrix:
+        include:
+          - os: linux
+            arch: amd64
+          - os: linux
+            arch: arm64
+          - os: darwin
+            arch: amd64
+          - os: darwin
+            arch: arm64
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download binary
+        uses: actions/download-artifact@v4
+        with:
+          name: binary-${{ matrix.os }}-${{ matrix.arch }}
+          path: dist
+
+      - name: Create tarball
+        env:
+          VERSION: ${{ needs.prepare.outputs.version }}
+        run: |
+          TAR_DIR="${{ env.BINARY_NAME }}-${VERSION}-${{ matrix.os }}-${{ matrix.arch }}"
+          mkdir -p "${TAR_DIR}"
+
+          cp dist/${{ env.BINARY_NAME }}-${{ matrix.os }}-${{ matrix.arch }} \
+             "${TAR_DIR}/${{ env.BINARY_NAME }}"
+          chmod +x "${TAR_DIR}/${{ env.BINARY_NAME }}"
+          cp configs/*.yaml "${TAR_DIR}/" 2>/dev/null || true
+          cp README.md "${TAR_DIR}/" 2>/dev/null || true
+          cp LICENSE "${TAR_DIR}/" 2>/dev/null || true
+
+          tar -czvf "${TAR_DIR}.tar.gz" "${TAR_DIR}"
+
+      - name: Upload tarball artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: tarball-${{ matrix.os }}-${{ matrix.arch }}
+          path: ${{ env.BINARY_NAME }}-*.tar.gz
           retention-days: 1
 
   # ===========================================================================
@@ -161,61 +308,153 @@ jobs:
   release:
     name: Create Release
     runs-on: ubuntu-latest
-    needs: [build, checksum]
+    needs:
+      - prepare
+      - build-linux
+      - build-windows
+      - build-macos
+      - package-tarball
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Get version
-        id: version
-        run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
-
-      - name: Download all artifacts
+      - name: Download Linux binaries
         uses: actions/download-artifact@v4
         with:
-          path: dist
+          pattern: binary-linux-*
+          path: artifacts/binaries
           merge-multiple: true
 
-      - name: List artifacts
-        run: ls -la dist/
+      - name: Download Windows binaries
+        uses: actions/download-artifact@v4
+        with:
+          pattern: binary-windows-*
+          path: artifacts/binaries
+          merge-multiple: true
 
-      - name: Generate changelog
-        id: changelog
+      - name: Download macOS binaries
+        uses: actions/download-artifact@v4
+        with:
+          pattern: binary-darwin-*
+          path: artifacts/binaries
+          merge-multiple: true
+
+      - name: Download tarballs
+        uses: actions/download-artifact@v4
+        with:
+          pattern: tarball-*
+          path: artifacts/tarball
+          merge-multiple: true
+
+      - name: Prepare release assets
         run: |
-          # Get the previous tag
-          PREV_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
+          mkdir -p release
 
-          if [ -n "$PREV_TAG" ]; then
-            echo "## Changes since $PREV_TAG" > CHANGELOG.md
-            echo "" >> CHANGELOG.md
-            git log --pretty=format:"- %s (%h)" $PREV_TAG..HEAD >> CHANGELOG.md
-          else
-            echo "## Initial Release" > CHANGELOG.md
-            echo "" >> CHANGELOG.md
-            echo "First release of order-service." >> CHANGELOG.md
+          echo "=== Downloaded artifacts structure ==="
+          find artifacts -type f -ls
+
+          echo ""
+          echo "=== Collecting binaries ==="
+          find artifacts/binaries -type f -exec cp {} release/ \; 2>/dev/null || echo "No binaries found"
+
+          echo "=== Collecting tarballs ==="
+          find artifacts/tarball -name "*.tar.gz" -exec cp {} release/ \; 2>/dev/null || echo "No tarballs found"
+
+          echo ""
+          echo "=== Release directory contents ==="
+          ls -la release/
+
+          echo ""
+          echo "=== Package summary ==="
+          echo "Binaries:     $(ls release/${{ env.BINARY_NAME }}-* 2>/dev/null | wc -l)"
+          echo "Tarballs:     $(ls release/*.tar.gz 2>/dev/null | wc -l)"
+          echo "Total files:  $(ls release/ | wc -l)"
+
+          if [ -z "$(ls -A release/)" ]; then
+            echo "ERROR: No release assets found!"
+            exit 1
           fi
 
-          echo "" >> CHANGELOG.md
-          echo "## Checksums" >> CHANGELOG.md
-          echo '```' >> CHANGELOG.md
-          cat dist/checksums.txt >> CHANGELOG.md
-          echo '```' >> CHANGELOG.md
+      - name: Generate checksums
+        run: |
+          cd release
+          sha256sum * > checksums-sha256.txt
+          cat checksums-sha256.txt
 
-      - name: Create GitHub Release
+      - name: Create tag if not exists (workflow_dispatch)
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          TAG_NAME="v${{ needs.prepare.outputs.version }}"
+          if ! git rev-parse "$TAG_NAME" >/dev/null 2>&1; then
+            git tag -a "$TAG_NAME" -m "Release $TAG_NAME"
+            git push origin "$TAG_NAME"
+            echo "Created tag: $TAG_NAME"
+          else
+            echo "Tag $TAG_NAME already exists"
+          fi
+
+      - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
-          name: ${{ env.BINARY_NAME }} ${{ steps.version.outputs.VERSION }}
-          body_path: CHANGELOG.md
+          name: "${{ env.PRODUCT_NAME }} v${{ needs.prepare.outputs.version }}"
+          tag_name: "v${{ needs.prepare.outputs.version }}"
           draft: false
-          prerelease: ${{ contains(steps.version.outputs.VERSION, '-rc') || contains(steps.version.outputs.VERSION, '-beta') || contains(steps.version.outputs.VERSION, '-alpha') }}
-          files: |
-            dist/${{ env.BINARY_NAME }}-*
-            dist/checksums.txt
+          prerelease: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.prerelease == 'true' }}
           generate_release_notes: true
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          files: |
+            release/*
+          body: |
+            ## ${{ env.PRODUCT_NAME }} v${{ needs.prepare.outputs.version }}
+
+            Order management microservice for the TelemetryFlow platform with OpenTelemetry instrumentation.
+
+            ### Downloads
+
+            | Platform | Architecture | Package |
+            |----------|--------------|---------|
+            | Linux | amd64 | Binary, tar.gz |
+            | Linux | arm64 | Binary, tar.gz |
+            | Windows | amd64 | Binary (EXE) |
+            | macOS | Intel (amd64) | Binary, tar.gz |
+            | macOS | Apple Silicon (arm64) | Binary, tar.gz |
+
+            ### Docker
+
+            ```bash
+            docker pull ghcr.io/${{ github.repository }}:${{ needs.prepare.outputs.version }}
+            ```
+
+            ### Quick Start
+
+            **Linux/macOS:**
+            ```bash
+            tar -xzf order-service-${{ needs.prepare.outputs.version }}-linux-amd64.tar.gz
+            cd order-service-${{ needs.prepare.outputs.version }}-linux-amd64
+            ./order-service
+            ```
+
+            **Docker:**
+            ```bash
+            docker run -d -p 8080:8080 \
+              -e DB_HOST=localhost \
+              -e DB_PORT=5432 \
+              -e DB_USER=postgres \
+              -e DB_PASSWORD=postgres \
+              -e DB_NAME=orders \
+              ghcr.io/${{ github.repository }}:${{ needs.prepare.outputs.version }}
+            ```
+
+            ### Verification
+
+            Verify downloads using SHA256 checksums in `checksums-sha256.txt`.
+
+            ---
+
+            📚 [Documentation](https://docs.telemetryflow.id) | 🐛 [Report Issues](https://github.com/${{ github.repository }}/issues)
 
   # ===========================================================================
   # Build and push Docker image for release
@@ -223,7 +462,7 @@ jobs:
   docker-release:
     name: Docker Release
     runs-on: ubuntu-latest
-    needs: test
+    needs: [prepare, test]
     env:
       REGISTRY: ghcr.io
       IMAGE_NAME: ${{ github.repository }}
@@ -268,30 +507,44 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
           build-args: |
-            VERSION=${{ github.ref_name }}
-            GIT_COMMIT=${{ github.sha }}
-            BUILD_TIME=${{ github.event.head_commit.timestamp }}
+            VERSION=${{ needs.prepare.outputs.version }}
+            GIT_COMMIT=${{ needs.prepare.outputs.commit }}
+            BUILD_TIME=${{ needs.prepare.outputs.build_time }}
 
   # ===========================================================================
-  # Notify on release
+  # Release Summary
   # ===========================================================================
-  notify:
-    name: Notify
+  summary:
+    name: Release Summary
     runs-on: ubuntu-latest
-    needs: [release, docker-release]
+    needs: [prepare, release, docker-release]
     if: always()
     steps:
-      - name: Get version
-        id: version
-        run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
-
       - name: Release summary
         run: |
-          echo "## Release Summary" >> $GITHUB_STEP_SUMMARY
+          echo "## ${{ env.PRODUCT_NAME }} - Release Summary" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Version:** ${{ steps.version.outputs.VERSION }}" >> $GITHUB_STEP_SUMMARY
-          echo "**Commit:** ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+          echo "| Item | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "|------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Version | v${{ needs.prepare.outputs.version }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Commit | ${{ needs.prepare.outputs.commit }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Build Time | ${{ needs.prepare.outputs.build_time }} |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Job Status" >> $GITHUB_STEP_SUMMARY
+          echo "| Job | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|-----|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Release | ${{ needs.release.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Docker | ${{ needs.docker-release.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Artifacts" >> $GITHUB_STEP_SUMMARY
-          echo "- GitHub Release: https://github.com/${{ github.repository }}/releases/tag/${{ steps.version.outputs.VERSION }}" >> $GITHUB_STEP_SUMMARY
-          echo "- Docker Image: ghcr.io/${{ github.repository }}:${{ steps.version.outputs.VERSION }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **GitHub Release:** https://github.com/${{ github.repository }}/releases/tag/v${{ needs.prepare.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Docker Image:** \`ghcr.io/${{ github.repository }}:${{ needs.prepare.outputs.version }}\`" >> $GITHUB_STEP_SUMMARY
+
+      - name: Check overall status
+        run: |
+          if [[ "${{ needs.release.result }}" == "failure" ]] || \
+             [[ "${{ needs.docker-release.result }}" == "failure" ]]; then
+            echo "Release failed - one or more required jobs failed"
+            exit 1
+          fi
+          echo "Release completed successfully"
