@@ -13,7 +13,7 @@ func IncrementCounter(name string, value int64, labels map[string]interface{}) {
 		return
 	}
 	ctx := context.Background()
-	telemetry.Client().IncrementCounter(ctx, name, value, labels)
+	_ = telemetry.Client().IncrementCounter(ctx, name, value, labels)
 }
 
 // RecordGauge records a gauge metric
@@ -22,7 +22,7 @@ func RecordGauge(name string, value float64, labels map[string]interface{}) {
 		return
 	}
 	ctx := context.Background()
-	telemetry.Client().RecordGauge(ctx, name, value, labels)
+	_ = telemetry.Client().RecordGauge(ctx, name, value, labels)
 }
 
 // RecordHistogram records a histogram measurement
@@ -31,7 +31,7 @@ func RecordHistogram(name string, value float64, unit string, labels map[string]
 		return
 	}
 	ctx := context.Background()
-	telemetry.Client().RecordHistogram(ctx, name, value, unit, labels)
+	_ = telemetry.Client().RecordHistogram(ctx, name, value, unit, labels)
 }
 
 // HTTP Metrics

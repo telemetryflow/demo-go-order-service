@@ -55,7 +55,7 @@ func Logger() echo.MiddlewareFunc {
 			if res.Status >= 500 {
 				spanErr = fmt.Errorf("HTTP %d", res.Status)
 			}
-			traces.EndSpan(ctx, spanID, spanErr)
+			_ = traces.EndSpan(ctx, spanID, spanErr)
 
 			return err
 		}

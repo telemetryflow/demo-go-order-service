@@ -18,16 +18,16 @@ func SetEnvVars(vars map[string]string) func() {
 	// Store original values
 	for key, value := range vars {
 		originalVars[key] = os.Getenv(key)
-		os.Setenv(key, value)
+		_ = os.Setenv(key, value)
 	}
 
 	// Return cleanup function
 	return func() {
 		for key, originalValue := range originalVars {
 			if originalValue == "" {
-				os.Unsetenv(key)
+				_ = os.Unsetenv(key)
 			} else {
-				os.Setenv(key, originalValue)
+				_ = os.Setenv(key, originalValue)
 			}
 		}
 	}
@@ -45,4 +45,11 @@ func GetSampleEntities(count int) []interface{} {
 		entities[i] = domain.NewEntity(uuid.New(), "Test Entity")
 	}
 	return entities
+}
+
+// GetSampleEntityData returns sample entity data for HTTP request body
+func GetSampleEntityData() map[string]interface{} {
+	return map[string]interface{}{
+		"name": "Test Entity",
+	}
 }

@@ -51,7 +51,7 @@ func AddEvent(ctx context.Context, spanID, name string, attrs map[string]interfa
 func SpanFunc(ctx context.Context, name string, fn func() error) error {
 	spanID, _ := StartSpan(ctx, name, nil)
 	err := fn()
-	EndSpan(ctx, spanID, err)
+	_ = EndSpan(ctx, spanID, err)
 	return err
 }
 

@@ -68,7 +68,7 @@ func (h *OrderHandler) List(c echo.Context) error {
 	if err := c.Bind(&q); err != nil {
 		return response.BadRequest(c, "Invalid query parameters")
 	}
-	q.Validate()
+	_ = q.Validate()
 
 	result, err := h.queryHandler.HandleOrderGetAll(c.Request().Context(), &q)
 	if err != nil {

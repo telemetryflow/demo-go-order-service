@@ -98,7 +98,7 @@ func (r *orderitemRepository) FindAll(ctx context.Context, offset, limit int) ([
 	if err != nil {
 		return nil, 0, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	var orderitems []entity.Orderitem
 	for rows.Next() {

@@ -17,12 +17,13 @@ COPY . .
 RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o /app/order-service ./cmd/api
 
 # Runtime stage
-FROM alpine:3.23
+FROM alpine:3.21
 
 WORKDIR /app
 
-# Install runtime dependencies
-RUN apk add --no-cache ca-certificates tzdata
+# Update packages to get security patches (CVE fixes) and install runtime dependencies
+RUN apk upgrade --no-cache && \
+    apk add --no-cache ca-certificates tzdata
 
 # Copy binary from builder
 COPY --from=builder /app/order-service .

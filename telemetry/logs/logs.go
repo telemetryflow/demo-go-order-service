@@ -15,7 +15,7 @@ func Info(message string, attrs map[string]interface{}) {
 		return
 	}
 	ctx := context.Background()
-	telemetry.Client().LogInfo(ctx, message, attrs)
+	_ = telemetry.Client().LogInfo(ctx, message, attrs)
 }
 
 // Warn logs a warning-level message
@@ -25,7 +25,7 @@ func Warn(message string, attrs map[string]interface{}) {
 		return
 	}
 	ctx := context.Background()
-	telemetry.Client().LogWarn(ctx, message, attrs)
+	_ = telemetry.Client().LogWarn(ctx, message, attrs)
 }
 
 // Error logs an error-level message
@@ -35,7 +35,7 @@ func Error(message string, attrs map[string]interface{}) {
 		return
 	}
 	ctx := context.Background()
-	telemetry.Client().LogError(ctx, message, attrs)
+	_ = telemetry.Client().LogError(ctx, message, attrs)
 }
 
 // Debug logs a debug-level message
@@ -45,7 +45,7 @@ func Debug(message string, attrs map[string]interface{}) {
 		return
 	}
 	ctx := context.Background()
-	telemetry.Client().Log(ctx, "debug", message, attrs)
+	_ = telemetry.Client().Log(ctx, "debug", message, attrs)
 }
 
 // WithError adds error to attributes

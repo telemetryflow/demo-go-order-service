@@ -112,7 +112,7 @@ func (l *Logger) log(level Level, msg string, args ...interface{}) {
 	}
 
 	data, _ := json.Marshal(entry)
-	fmt.Fprintln(l.output, string(data))
+	_, _ = fmt.Fprintln(l.output, string(data))
 }
 
 // Debug logs a debug message
