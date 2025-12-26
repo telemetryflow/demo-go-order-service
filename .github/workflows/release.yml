@@ -1114,29 +1114,48 @@ jobs:
 
             | Platform | Architecture | Package |
             |----------|--------------|---------|
-            | Linux | amd64 | Binary, tar.gz |
-            | Linux | arm64 | Binary, tar.gz |
-            | Windows | amd64 | Binary (EXE) |
-            | macOS | Intel (amd64) | Binary, tar.gz |
-            | macOS | Apple Silicon (arm64) | Binary, tar.gz |
+            | Linux | amd64 | RPM, DEB, tar.gz |
+            | Linux | arm64 | RPM, DEB, tar.gz |
+            | Windows | amd64 | ZIP (with installer) |
+            | macOS | Intel (amd64) | DMG, tar.gz |
+            | macOS | Apple Silicon (arm64) | DMG, tar.gz |
 
-            ### Docker
+            ### Installation
 
+            **Linux (DEB - Debian/Ubuntu):**
             ```bash
-            docker pull ghcr.io/${{ github.repository }}:${{ needs.prepare.outputs.version }}
+            sudo dpkg -i order-service_${{ needs.prepare.outputs.version }}_amd64.deb
+            sudo systemctl start order-service
+            sudo systemctl enable order-service
             ```
 
-            ### Quick Start
+            **Linux (RPM - RHEL/CentOS/Fedora):**
+            ```bash
+            sudo rpm -i order-service-${{ needs.prepare.outputs.version }}-1.x86_64.rpm
+            sudo systemctl start order-service
+            sudo systemctl enable order-service
+            ```
 
-            **Linux/macOS:**
+            **Linux (tarball):**
             ```bash
             tar -xzf order-service-${{ needs.prepare.outputs.version }}-linux-amd64.tar.gz
             cd order-service-${{ needs.prepare.outputs.version }}-linux-amd64
             ./order-service
             ```
 
-            **Docker:**
+            **macOS:**
+            1. Open the DMG file
+            2. Run `./install.sh` in Terminal
+
+            **Windows (PowerShell as Administrator):**
+            1. Extract the ZIP file
+            2. Run `.\install.ps1`
+
+            ### Docker
+
             ```bash
+            docker pull ghcr.io/${{ github.repository }}:${{ needs.prepare.outputs.version }}
+
             docker run -d -p 8080:8080 \
               -e DB_HOST=localhost \
               -e DB_PORT=5432 \
@@ -1144,6 +1163,29 @@ jobs:
               -e DB_PASSWORD=postgres \
               -e DB_NAME=orders \
               ghcr.io/${{ github.repository }}:${{ needs.prepare.outputs.version }}
+            ```
+
+            ### Service Management
+
+            **Linux (systemd):**
+            ```bash
+            sudo systemctl start order-service
+            sudo systemctl stop order-service
+            sudo systemctl status order-service
+            journalctl -u order-service -f
+            ```
+
+            **macOS (launchd):**
+            ```bash
+            sudo launchctl load /Library/LaunchDaemons/id.telemetryflow.order-service.plist
+            sudo launchctl unload /Library/LaunchDaemons/id.telemetryflow.order-service.plist
+            ```
+
+            **Windows:**
+            ```powershell
+            Start-Service OrderService
+            Stop-Service OrderService
+            Get-Service OrderService
             ```
 
             ### Verification
@@ -1224,9 +1266,17 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "| Item | Value |" >> $GITHUB_STEP_SUMMARY
           echo "|------|-------|" >> $GITHUB_STEP_SUMMARY
-          echo "| Version | v${{ needs.prepare.outputs.version }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Commit | ${{ needs.prepare.outputs.commit }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Build Time | ${{ needs.prepare.outputs.build_time }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Version** | v${{ needs.prepare.outputs.version }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Commit** | ${{ needs.prepare.outputs.commit }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Branch** | ${{ needs.prepare.outputs.branch }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Build Time** | ${{ needs.prepare.outputs.build_time }} |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Packages" >> $GITHUB_STEP_SUMMARY
+          echo "| Platform | Formats |" >> $GITHUB_STEP_SUMMARY
+          echo "|----------|---------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Linux | RPM, DEB, tar.gz |" >> $GITHUB_STEP_SUMMARY
+          echo "| Windows | ZIP |" >> $GITHUB_STEP_SUMMARY
+          echo "| macOS | DMG, tar.gz |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Job Status" >> $GITHUB_STEP_SUMMARY
           echo "| Job | Status |" >> $GITHUB_STEP_SUMMARY
