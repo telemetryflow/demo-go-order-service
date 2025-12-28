@@ -6,6 +6,9 @@ WORKDIR /app
 # Install dependencies
 RUN apk add --no-cache git ca-certificates tzdata
 
+# Bypass Go proxy for TelemetryFlow private modules
+ENV GOPRIVATE=github.com/telemetryflow/*
+
 # Copy go mod files
 COPY go.mod go.sum ./
 RUN go mod download
