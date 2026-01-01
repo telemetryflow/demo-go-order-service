@@ -8,6 +8,21 @@
 #
 # For the TelemetryFlow Standalone build (custom format), use: configs/tfo-collector.yaml
 #
+# =============================================================================
+# OTLP HTTP Endpoints (OCB/OTEL Community - v1 ONLY)
+# =============================================================================
+#   Standard OpenTelemetry endpoints:
+#     POST http://localhost:4318/v1/traces
+#     POST http://localhost:4318/v1/metrics
+#     POST http://localhost:4318/v1/logs
+#
+#   gRPC:
+#     localhost:4317
+#
+#   NOTE: v2 endpoints are NOT supported in OCB builds.
+#         Use TFO Standalone build for v2 endpoint support.
+#
+# =============================================================================
 # Features demonstrated:
 # - Metrics, Logs, Traces collection
 # - Exemplars support via spanmetrics connector

@@ -125,38 +125,55 @@ services:
   #----------------------------------------------------------------------------------------------
   # OTEL COLLECTOR - OpenTelemetry Collector
   #----------------------------------------------------------------------------------------------
+  # Supports dual ingestion: v1 (OTEL standard) and v2 (TelemetryFlow enhanced)
+  #
+  # OTLP HTTP Endpoints:
+  #   TelemetryFlow Platform (Recommended - TFO Standalone):
+  #     POST http://localhost:4318/v2/traces
+  #     POST http://localhost:4318/v2/metrics
+  #     POST http://localhost:4318/v2/logs
+  #
+  #   OTEL Community (Backwards Compatible - OCB/Standard):
+  #     POST http://localhost:4318/v1/traces
+  #     POST http://localhost:4318/v1/metrics
+  #     POST http://localhost:4318/v1/logs
+  #
+  #   gRPC (Both versions via same port): localhost:4317
+  #----------------------------------------------------------------------------------------------
   otel-collector:
     profiles: ["monitoring", "all"]
     platform: linux/amd64
+    # =============================================================================
+    # TelemetryFlow Collector (TFO-Collector) - Custom TFO format with OTLP support (v1.1.1+)
+    image: telemetryflow/telemetryflow-collector:${TFO_VERSION:-latest}
+    command: ["--config=/etc/tfo-collector/tfo-collector.yaml"]
+    # =============================================================================
+    # TelemetryFlow Collector OCB (TFO-Collector-OCB) - Standard OTEL format
+    # image: telemetryflow/telemetryflow-collector-ocb:${TFO_VERSION:-latest}
+    # command: ["--config=/etc/tfo-collector/otel-collector.yaml"]
     # =============================================================================
     # OTEL Collector Community Contributor (Standard OTEL format)
     # image: otel/opentelemetry-collector-contrib:${OTEL_VERSION:-0.142.0}
     # command: ["--config=/etc/otelcol-contrib/config.yaml"]
     # =============================================================================
-    # TelemetryFlow Collector OCB (TFO-Collector-OCB) - Standard OTEL format
-    image: telemetryflow/telemetryflow-collector-ocb:${OTEL_VERSION:-latest}
-    command: ["--config=/etc/tfo-collector/otel-collector.yaml"]
-    # =============================================================================
-    # TelemetryFlow Collector (TFO-Collector) - Custom TFO format (OTLP not implemented yet)
-    # image: telemetryflow/telemetryflow-collector:${OTEL_VERSION:-latest}
-    # command: ["--config=/etc/tfo-collector/tfo-collector.yaml"]
-    # =============================================================================
     container_name: ${CONTAINER_OTEL:-order_service_otel}
     restart: unless-stopped
     volumes:
-      # OTEL Collector Community Contributor config
-      # - ./configs/otel/otel-collector.yaml:/etc/otelcol-contrib/config.yaml:ro
+      # TelemetryFlow Collector config (Custom TFO format)
+      - ./configs/otel/tfo-collector.yaml:/etc/tfo-collector/tfo-collector.yaml:ro
       # =============================================================================
       # TelemetryFlow Collector OCB config (Standard OTEL format)
-      - ./configs/otel/otel-collector.yaml:/etc/tfo-collector/otel-collector.yaml:ro
+      # - ./configs/otel/otel-collector.yaml:/etc/tfo-collector/otel-collector.yaml:ro
       # =============================================================================
-      # TelemetryFlow Collector config (Custom TFO format)
-      # - ./configs/otel/tfo-collector.yaml:/etc/tfo-collector/tfo-collector.yaml:ro
+      # OTEL Collector Community Contributor config (Standard OTEL format)
+      # - ./configs/otel/otel-collector.yaml:/etc/otelcol-contrib/config.yaml:ro
     ports:
-      - "${PORT_OTEL_GRPC:-4317}:4317"     # OTLP gRPC
-      - "${PORT_OTEL_HTTP:-4318}:4318"     # OTLP HTTP
+      - "${PORT_OTEL_GRPC:-4317}:4317"     # OTLP gRPC (v1 & v2)
+      - "${PORT_OTEL_HTTP:-4318}:4318"     # OTLP HTTP (v1 & v2)
       - "${PORT_OTEL_METRICS:-8889}:8889"  # Prometheus metrics
       - "${PORT_OTEL_HEALTH:-13133}:13133" # Health check
+      - "${PORT_OTEL_ZPAGES:-55679}:55679" # zPages
+      - "${PORT_OTEL_PPROF:-1777}:1777"    # pprof
     networks:
       order_service_net:
         ipv4_address: ${CONTAINER_IP_OTEL:-172.152.152.30}

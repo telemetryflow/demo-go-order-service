@@ -52,7 +52,7 @@ telemetryflow:
 # Collector identification
 collector:
   # Unique collector identifier (auto-generated if empty)
-  id: ""
+  id: "${TELEMETRYFLOW_COLLECTOR_ID}"
   # Collector hostname (auto-detected if empty)
   hostname: ""
   # Human-readable collector name
@@ -63,7 +63,7 @@ collector:
   version: ""
   # Custom tags for labeling and filtering
   tags:
-    environment: "${TELEMETRYFLOW_ENVIRONMENT:-develop}"
+    environment: "${TELEMETRYFLOW_ENVIRONMENT:-production}"
     datacenter: "tfo-collector"
 
 # =============================================================================
@@ -110,7 +110,7 @@ receivers:
   #           - targets:
   #               - "localhost:9100"
   #             labels:
-  #               env: "development"
+  #               env: "production"
 
 # =============================================================================
 # PROCESSORS - How telemetry data is processed
@@ -135,7 +135,7 @@ processors:
         value: telemetryflow
         action: upsert
       - key: deployment.environment
-        value: "${TELEMETRYFLOW_ENVIRONMENT:-development}"
+        value: "${TELEMETRYFLOW_ENVIRONMENT:-production}"
         action: upsert
 
   # Attributes processor (uncomment to enable)
@@ -143,7 +143,7 @@ processors:
   #   actions:
   #     - key: environment
   #       action: insert
-  #       value: development
+  #       value: production
 
 # =============================================================================
 # CONNECTORS - Pipeline bridging for Exemplars and derived metrics
@@ -191,6 +191,18 @@ exporters:
     verbosity: detailed
     sampling_initial: 5
     sampling_thereafter: 200
+
+  # OTLP exporter for Jaeger V2 (native OTLP support)
+  # Jaeger V2 listens on 4317 (gRPC) and 4318 (HTTP) by default
+  otlp/jaeger:
+    endpoint: "${JAEGER_OTLP_ENDPOINT:-jaeger:4317}"
+    tls:
+      insecure: true
+    retry_on_failure:
+      enabled: true
+      initial_interval: 5s
+      max_interval: 30s
+      max_elapsed_time: 300s
 
   # Prometheus exporter for metrics scraping (with exemplars support)
   prometheus:
@@ -271,11 +283,11 @@ service:
   extensions: [health_check, zpages, pprof]
 
   pipelines:
-    # Traces pipeline - receives traces, exports to debug and spanmetrics connector
+    # Traces pipeline - receives traces, exports to Jaeger, debug, and spanmetrics connector
     traces:
       receivers: [otlp]
       processors: [memory_limiter, batch, resource]
-      exporters: [debug, spanmetrics, servicegraph]
+      exporters: [otlp/jaeger, debug, spanmetrics, servicegraph]
 
     # Metrics pipeline - receives metrics from OTLP
     metrics:
