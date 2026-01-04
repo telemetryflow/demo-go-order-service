@@ -509,7 +509,7 @@ func TestJWTClaims(t *testing.T) {
 				Subject:   "user-123",
 				ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour)),
 				IssuedAt:  jwt.NewNumericDate(time.Now()),
-				Issuer:    "order-service",
+				Issuer:    "Order-Service",
 			},
 		}
 
@@ -517,7 +517,7 @@ func TestJWTClaims(t *testing.T) {
 		assert.Equal(t, "test@example.com", claims.Email)
 		assert.Equal(t, "admin", claims.Role)
 		assert.Equal(t, "user-123", claims.Subject)
-		assert.Equal(t, "order-service", claims.Issuer)
+		assert.Equal(t, "Order-Service", claims.Issuer)
 	})
 }
 

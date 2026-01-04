@@ -3,6 +3,8 @@ package http
 
 import (
 	echoMiddleware "github.com/labstack/echo/v4/middleware"
+	"go.opentelemetry.io/contrib/instrumentation/github.com/labstack/echo/otelecho"
+
 	"github.com/telemetryflow/order-service/internal/infrastructure/http/handler"
 	"github.com/telemetryflow/order-service/internal/infrastructure/http/middleware"
 )
@@ -14,6 +16,10 @@ func (s *Server) setupRoutes() {
 	// Global middleware
 	e.Use(echoMiddleware.Recover())
 	e.Use(echoMiddleware.RequestID())
+
+	// OpenTelemetry auto-instrumentation for HTTP
+	e.Use(otelecho.Middleware(s.config.Telemetry.ServiceName))
+
 	e.Use(middleware.Logger())
 	e.Use(middleware.CORS())
 	e.Use(middleware.RateLimit(s.config.RateLimit))
@@ -22,6 +28,10 @@ func (s *Server) setupRoutes() {
 	healthHandler := handler.NewHealthHandler(s.db)
 	e.GET("/health", healthHandler.Health)
 	e.GET("/ready", healthHandler.Ready)
+
+	// Swagger documentation
+	swaggerHandler := handler.NewSwaggerHandler("Order Service API")
+	swaggerHandler.RegisterRoutes(e)
 
 	// API v1 routes
 	v1 := e.Group("/api/v1")
@@ -38,6 +48,4 @@ func (s *Server) setupRoutes() {
 		}
 	}
 
-	// Swagger documentation
-	// e.GET("/swagger/*", echoSwagger.WrapHandler)
 }

@@ -149,7 +149,7 @@ jobs:
             org.opencontainers.image.description=Order Service microservice for TelemetryFlow platform
             org.opencontainers.image.vendor=TelemetryFlow
             io.telemetryflow.product=${{ env.PRODUCT_NAME }}
-            io.telemetryflow.component=order-service
+            io.telemetryflow.component=Order-Service
             io.telemetryflow.platform=CEOP
 
   # ===========================================================================
@@ -314,14 +314,14 @@ jobs:
           echo '```bash' >> $GITHUB_STEP_SUMMARY
           echo "# Run Order Service" >> $GITHUB_STEP_SUMMARY
           echo "docker run -d \\" >> $GITHUB_STEP_SUMMARY
-          echo "  --name order-service \\" >> $GITHUB_STEP_SUMMARY
+          echo "  --name Order-Service \\" >> $GITHUB_STEP_SUMMARY
           echo "  -p 8080:8080 \\" >> $GITHUB_STEP_SUMMARY
           echo "  -e DATABASE_URL=postgres://... \\" >> $GITHUB_STEP_SUMMARY
           echo "  ${{ env.IMAGE_NAME }}:latest" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "# Run with TelemetryFlow integration" >> $GITHUB_STEP_SUMMARY
           echo "docker run -d \\" >> $GITHUB_STEP_SUMMARY
-          echo "  --name order-service \\" >> $GITHUB_STEP_SUMMARY
+          echo "  --name Order-Service \\" >> $GITHUB_STEP_SUMMARY
           echo "  -e TELEMETRYFLOW_ENDPOINT=api.telemetryflow.id:4317 \\" >> $GITHUB_STEP_SUMMARY
           echo "  -e TELEMETRYFLOW_API_KEY_ID=tfk_... \\" >> $GITHUB_STEP_SUMMARY
           echo "  ${{ env.IMAGE_NAME }}:latest" >> $GITHUB_STEP_SUMMARY

@@ -39,8 +39,8 @@ func Logger() echo.MiddlewareFunc {
 			// Record metrics
 			metrics.RecordHTTPRequest(req.Method, req.URL.Path, res.Status, duration.Seconds())
 
-			// Log request
-			logs.Info("HTTP request", map[string]interface{}{
+			// Log request at appropriate level based on status
+			logAttrs := map[string]interface{}{
 				"method":     req.Method,
 				"path":       req.URL.Path,
 				"status":     res.Status,
@@ -48,7 +48,15 @@ func Logger() echo.MiddlewareFunc {
 				"request_id": c.Response().Header().Get(echo.HeaderXRequestID),
 				"user_agent": req.UserAgent(),
 				"remote_ip":  c.RealIP(),
-			})
+			}
+
+			if res.Status >= 500 {
+				logs.Error("HTTP request failed", logAttrs)
+			} else if res.Status >= 400 {
+				logs.Warn("HTTP request client error", logAttrs)
+			} else {
+				logs.Info("HTTP request", logAttrs)
+			}
 
 			// End trace span
 			var spanErr error

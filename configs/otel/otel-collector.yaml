@@ -1,39 +1,58 @@
-# OpenTelemetry Collector Configuration (Standard OTEL Format)
+# =============================================================================
+# OpenTelemetry Collector Configuration (Community Default)
+# =============================================================================
 # TelemetryFlow Collector - Community Enterprise Observability Platform (CEOP)
 # Copyright (c) 2024-2026 TelemetryFlow. All rights reserved.
 #
-# This config uses STANDARD OpenTelemetry Collector format.
-# Use with OCB build: ./build/tfo-collector-ocb --config configs/otel-collector.yaml
-# Or with community OTEL collector: otelcol --config configs/otel-collector.yaml
+# This is the DEFAULT community configuration using standard OTEL components.
+# No TFO authentication required - compatible with any OTEL-compliant client.
 #
-# For the TelemetryFlow Standalone build (custom format), use: configs/tfo-collector.yaml
+# Usage: ./tfo-collector --config configs/otel-collector.yaml
 #
 # =============================================================================
-# OTLP HTTP Endpoints (OCB/OTEL Community - v1 ONLY)
+# OTLP HTTP Endpoints (Standard OTEL - v1 only, NO AUTH)
 # =============================================================================
-#   Standard OpenTelemetry endpoints:
+#
+#   HTTP Endpoints:
 #     POST http://localhost:4318/v1/traces
 #     POST http://localhost:4318/v1/metrics
 #     POST http://localhost:4318/v1/logs
 #
-#   gRPC:
+#   gRPC Endpoint:
 #     localhost:4317
 #
-#   NOTE: v2 endpoints are NOT supported in OCB builds.
-#         Use TFO Standalone build for v2 endpoint support.
-#
 # =============================================================================
-# Features demonstrated:
-# - Metrics, Logs, Traces collection
+# Features Included:
+# - Full OTLP receiver (gRPC + HTTP)
+# - Traces, Metrics, Logs collection
 # - Exemplars support via spanmetrics connector
-# - Service graph generation
-# - Legacy format support (Jaeger, Zipkin)
+# - Service graph generation for dependency mapping
+# - Prometheus exporter with OpenMetrics support
+# - Debug exporter for troubleshooting
+# - Health check, zPages, pprof extensions
+# =============================================================================
+
+# =============================================================================
+# EXTENSIONS - Additional collector capabilities
+# =============================================================================
+extensions:
+  # Health check extension - provides /health endpoint
+  health_check:
+    endpoint: "0.0.0.0:13133"
+
+  # zPages extension - debugging UI at /debug/tracez, /debug/pipelinez
+  zpages:
+    endpoint: "0.0.0.0:55679"
+
+  # pprof extension - Go profiling at /debug/pprof
+  pprof:
+    endpoint: "0.0.0.0:1777"
 
 # =============================================================================
 # RECEIVERS - How telemetry data enters the collector
 # =============================================================================
 receivers:
-  # OTLP receiver for OpenTelemetry Protocol (metrics, logs, traces)
+  # OTLP receiver - standard OpenTelemetry Protocol
   otlp:
     protocols:
       grpc:
@@ -80,50 +99,38 @@ receivers:
   #     scrape_configs:
   #       - job_name: "node-exporter"
   #         scrape_interval: 15s
-  #         scrape_timeout: 10s
-  #         metrics_path: "/metrics"
   #         static_configs:
-  #           - targets:
-  #               - "localhost:9100"
-  #             labels:
-  #               env: "production"
+  #           - targets: ["localhost:9100"]
 
-  # Host metrics receiver for system metrics (uncomment to enable)
+  # Host metrics receiver (uncomment to enable)
   # hostmetrics:
   #   collection_interval: 30s
   #   scrapers:
   #     cpu:
-  #       metrics:
-  #         system.cpu.utilization:
-  #           enabled: true
   #     memory:
-  #       metrics:
-  #         system.memory.utilization:
-  #           enabled: true
   #     disk:
   #     filesystem:
   #     load:
   #     network:
-  #     paging:
-  #     processes:
 
 # =============================================================================
 # PROCESSORS - How telemetry data is processed
 # =============================================================================
 processors:
-  # Batch processor for efficient data handling
+  # Batch processor - groups telemetry for efficient export
   batch:
     timeout: 200ms
     send_batch_size: 8192
     send_batch_max_size: 0
 
-  # Memory limiter to prevent OOM
+  # Memory limiter - prevents OOM by limiting memory usage
   memory_limiter:
     check_interval: 1s
     limit_percentage: 80
     spike_limit_percentage: 25
 
-  # Resource processor for adding attributes
+  # Resource processor - adds/modifies resource attributes
+  # To customize environment: export TELEMETRYFLOW_ENVIRONMENT=staging
   resource:
     attributes:
       - key: service.namespace
@@ -133,66 +140,39 @@ processors:
         value: production
         action: upsert
 
-  # Resource detection processor (uncomment to enable auto-detection)
+  # Resource detection (uncomment to auto-detect cloud/container resources)
   # resourcedetection:
   #   detectors: [env, system, docker, gcp, aws, azure]
   #   timeout: 5s
   #   override: false
 
-  # Attributes processor for data transformation (uncomment to enable)
+  # Attributes processor (uncomment to modify span/metric attributes)
   # attributes:
   #   actions:
   #     - key: environment
   #       action: insert
   #       value: production
 
-  # K8s attributes processor (uncomment for Kubernetes environments)
-  # k8sattributes:
-  #   auth_type: serviceAccount
-  #   passthrough: false
-  #   extract:
-  #     metadata:
-  #       - k8s.pod.name
-  #       - k8s.pod.uid
-  #       - k8s.deployment.name
-  #       - k8s.namespace.name
-  #       - k8s.node.name
-  #       - k8s.container.name
-  #     labels:
-  #       - tag_name: app
-  #         key: app.kubernetes.io/name
-  #         from: pod
-  #   pod_association:
-  #     - sources:
-  #         - from: resource_attribute
-  #           name: k8s.pod.ip
-
-  # Tail sampling processor (uncomment for intelligent trace sampling)
+  # Tail sampling (uncomment for intelligent trace sampling)
   # tail_sampling:
   #   decision_wait: 10s
   #   num_traces: 100
-  #   expected_new_traces_per_sec: 100
   #   policies:
   #     - name: errors-policy
   #       type: status_code
   #       status_code:
-  #         status_codes:
-  #           - ERROR
+  #         status_codes: [ERROR]
   #     - name: slow-traces-policy
   #       type: latency
   #       latency:
   #         threshold_ms: 1000
-  #     - name: probabilistic-policy
-  #       type: probabilistic
-  #       probabilistic:
-  #         sampling_percentage: 10
 
 # =============================================================================
-# CONNECTORS - Pipeline bridging for Exemplars and derived metrics
+# CONNECTORS - Pipeline bridging for derived metrics
 # =============================================================================
 connectors:
-  # Span metrics connector - derives metrics from traces with EXEMPLARS support
-  # This enables metrics with trace exemplars for drill-down from metrics to traces
+  # Span metrics connector - derives metrics from traces with EXEMPLARS
+  # Enables metrics-to-traces correlation in Grafana/Prometheus
   spanmetrics:
     histogram:
       explicit:
@@ -205,11 +185,12 @@ connectors:
       - name: rpc.method
       - name: rpc.service
     exemplars:
-      enabled: true  # Enable exemplars for metrics-to-traces correlation
+      enabled: true
     namespace: traces
     metrics_flush_interval: 15s
 
-  # Service graph connector - builds service dependency graphs from traces
+  # Service graph connector - builds service dependency graphs
+  # Generates metrics for service-to-service relationships
   servicegraph:
     latency_histogram_buckets: [1ms, 5ms, 10ms, 25ms, 50ms, 100ms, 250ms, 500ms, 1s, 2.5s, 5s, 10s]
     dimensions:
@@ -225,24 +206,18 @@ connectors:
       - messaging.system
       - rpc.service
 
-  # Exceptions connector - extracts exceptions from traces (uncomment to enable)
-  # exceptions:
-  #   dimensions:
-  #     - service.name
-  #     - exception.type
-  #     - exception.message
-
 # =============================================================================
 # EXPORTERS - Where telemetry data is sent
 # =============================================================================
 exporters:
-  # Debug exporter for development/troubleshooting
+  # Debug exporter - logs telemetry for development/troubleshooting
   debug:
     verbosity: detailed
     sampling_initial: 5
     sampling_thereafter: 200
 
-  # Prometheus exporter for metrics scraping (with exemplars support)
+  # Prometheus exporter - exposes metrics for Prometheus scraping
+  # Supports exemplars for metrics-to-traces correlation
   prometheus:
     endpoint: "0.0.0.0:8889"
     namespace: telemetryflow
@@ -250,110 +225,59 @@ exporters:
       collector: tfo-collector
     send_timestamps: true
     metric_expiration: 5m
-    enable_open_metrics: true  # Required for exemplars
+    enable_open_metrics: true
     resource_to_telemetry_conversion:
       enabled: true
 
-  # Prometheus remote write exporter (with exemplars support, uncomment to enable)
-  # prometheusremotewrite:
-  #   endpoint: "http://prometheus:9090/api/v1/write"
-  #   tls:
-  #     insecure: true
-  #   send_metadata: true
-  #   resource_to_telemetry_conversion:
-  #     enabled: true
+  # OTLP exporter to Jaeger (native OTLP support in Jaeger v2.x)
+  otlp/jaeger:
+    endpoint: "jaeger:4317"
+    tls:
+      insecure: true
 
-  # OTLP exporter for forwarding to other collectors/backends (uncomment to enable)
+  # OTLP exporter (uncomment to forward to other backends)
   # otlp:
   #   endpoint: "your-backend:4317"
   #   tls:
   #     insecure: true
   #   headers:
-  #     X-API-Key: "${env:TELEMETRYFLOW_API_KEY}"
-  #   compression: gzip
-  #   timeout: 30s
+  #     X-API-Key: "${env:API_KEY}"
   #   retry_on_failure:
   #     enabled: true
   #     initial_interval: 5s
   #     max_interval: 30s
-  #     max_elapsed_time: 300s
   #   sending_queue:
   #     enabled: true
   #     num_consumers: 10
   #     queue_size: 1000
 
-  # OTLP exporter to Jaeger (uncomment to enable)
-  # otlp/jaeger:
-  #   endpoint: "jaeger:4317"
+  # OTLP HTTP exporter (uncomment to forward via HTTP)
+  # otlphttp:
+  #   endpoint: "https://your-backend:4318"
+  #   compression: gzip
+
+  # Prometheus remote write (uncomment to push to Prometheus/Cortex/Mimir)
+  # prometheusremotewrite:
+  #   endpoint: "http://prometheus:9090/api/v1/write"
   #   tls:
   #     insecure: true
+  #   resource_to_telemetry_conversion:
+  #     enabled: true
 
-  # Loki exporter for logs (uncomment to enable)
-  # loki:
-  #   endpoint: "http://loki:3100/loki/api/v1/push"
-  #   labels:
-  #     attributes:
-  #       service.name: "service_name"
-  #       service.namespace: "namespace"
-  #     resource:
-  #       deployment.environment: "environment"
+  # File exporter for logs
+  file/logs:
+    path: "/tmp/logs/Order-Service-logs.json"
+    format: json
+    flush_interval: 1s
 
-  # File exporter for local storage (uncomment to enable)
+  # File exporter (uncomment for local storage)
   # file:
   #   path: "/var/lib/tfo-collector/output.json"
   #   format: json
-  #   compression: ""
-  #   flush_interval: 1s
   #   rotation:
   #     max_megabytes: 100
   #     max_days: 7
   #     max_backups: 3
-  #     localtime: true
-
-  # Elasticsearch exporter for logs and traces (uncomment to enable)
-  # elasticsearch:
-  #   endpoints:
-  #     - "http://elasticsearch:9200"
-  #   logs_index: "otel-logs"
-  #   traces_index: "otel-traces"
-  #   flush:
-  #     bytes: 5000000
-  #     interval: 30s
-
-  # ClickHouse exporter for analytics (uncomment to enable)
-  # clickhouse:
-  #   endpoint: "tcp://clickhouse:9000"
-  #   database: otel
-  #   username: default
-  #   password: ""
-  #   logs_table_name: otel_logs
-  #   traces_table_name: otel_traces
-  #   metrics_table_name: otel_metrics
-  #   ttl: 72h
-
-# =============================================================================
-# EXTENSIONS - Additional collector capabilities
-# =============================================================================
-extensions:
-  # Health check extension
-  health_check:
-    endpoint: "0.0.0.0:13133"
-
-  # zPages extension for debugging
-  zpages:
-    endpoint: "0.0.0.0:55679"
-
-  # pprof extension for profiling
-  pprof:
-    endpoint: "0.0.0.0:1777"
-
-  # File storage extension for persistent queuing (uncomment to enable)
-  # file_storage:
-  #   directory: /var/lib/tfo-collector/queue
-  #   timeout: 10s
-  #   compaction:
-  #     on_start: true
-  #     on_rebound: true
 
 # =============================================================================
 # SERVICE - Defines active components and pipelines
@@ -362,46 +286,46 @@ service:
   extensions: [health_check, zpages, pprof]
 
   pipelines:
-    # ==========================================================================
-    # Traces pipeline - receives traces, exports to debug and spanmetrics connector
-    # ==========================================================================
+    # -------------------------------------------------------------------------
+    # Traces pipeline - receives traces, exports to Jaeger, debug and connectors
+    # -------------------------------------------------------------------------
     traces:
       receivers: [otlp]
       processors: [memory_limiter, batch, resource]
-      exporters: [debug, spanmetrics, servicegraph]  # Export to connectors for derived metrics
+      exporters: [debug, otlp/jaeger, spanmetrics, servicegraph]
 
-    # ==========================================================================
+    # -------------------------------------------------------------------------
     # Metrics pipeline - receives metrics from OTLP
-    # ==========================================================================
+    # -------------------------------------------------------------------------
     metrics:
       receivers: [otlp]
       processors: [memory_limiter, batch, resource]
       exporters: [debug, prometheus]
 
-    # ==========================================================================
-    # Metrics from traces pipeline - receives derived metrics from spanmetrics connector
+    # -------------------------------------------------------------------------
+    # Metrics from traces - derived metrics from spanmetrics connector
     # These metrics include EXEMPLARS for correlation with traces
-    # ==========================================================================
+    # -------------------------------------------------------------------------
     metrics/spanmetrics:
       receivers: [spanmetrics]
       processors: [memory_limiter, batch]
       exporters: [prometheus]
 
-    # ==========================================================================
-    # Metrics from service graph - receives service dependency metrics
-    # ==========================================================================
+    # -------------------------------------------------------------------------
+    # Metrics from service graph - service dependency metrics
+    # -------------------------------------------------------------------------
     metrics/servicegraph:
       receivers: [servicegraph]
       processors: [memory_limiter, batch]
       exporters: [prometheus]
 
-    # ==========================================================================
-    # Logs pipeline
-    # ==========================================================================
+    # -------------------------------------------------------------------------
+    # Logs pipeline - receives logs from OTLP
+    # -------------------------------------------------------------------------
     logs:
       receivers: [otlp]
       processors: [memory_limiter, batch, resource]
-      exporters: [debug]
+      exporters: [debug, file/logs]
 
   # Internal telemetry configuration
   telemetry:

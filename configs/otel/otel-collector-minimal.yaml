@@ -1,0 +1,81 @@
+# =============================================================================
+# OpenTelemetry Collector Configuration (Minimal)
+# =============================================================================
+# TelemetryFlow Collector - Community Enterprise Observability Platform (CEOP)
+# Copyright (c) 2024-2026 TelemetryFlow. All rights reserved.
+#
+# This is a MINIMAL configuration for quick start and testing.
+# For production use, see otel-collector.yaml or tfo-collector.yaml.
+#
+# Usage: ./tfo-collector --config configs/otel-collector-minimal.yaml
+#
+# =============================================================================
+# Endpoints:
+#   HTTP: http://localhost:4318/v1/{traces,metrics,logs}
+#   gRPC: localhost:4317
+#   Health: http://localhost:13133/
+#   Metrics: http://localhost:8888/metrics
+# =============================================================================
+
+extensions:
+  health_check:
+    endpoint: "0.0.0.0:13133"
+
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: "0.0.0.0:4317"
+      http:
+        endpoint: "0.0.0.0:4318"
+
+processors:
+  batch:
+    timeout: 200ms
+    send_batch_size: 8192
+
+  memory_limiter:
+    check_interval: 1s
+    limit_percentage: 80
+    spike_limit_percentage: 25
+
+exporters:
+  debug:
+    verbosity: detailed
+    sampling_initial: 5
+    sampling_thereafter: 200
+
+  prometheus:
+    endpoint: "0.0.0.0:8889"
+    namespace: telemetryflow
+
+service:
+  extensions: [health_check]
+
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [memory_limiter, batch]
+      exporters: [debug]
+
+    metrics:
+      receivers: [otlp]
+      processors: [memory_limiter, batch]
+      exporters: [debug, prometheus]
+
+    logs:
+      receivers: [otlp]
+      processors: [memory_limiter, batch]
+      exporters: [debug]
+
+  telemetry:
+    logs:
+      level: info
+    metrics:
+      level: basic
+      readers:
+        - pull:
+            exporter:
+              prometheus:
+                host: "0.0.0.0"
+                port: 8888

@@ -107,14 +107,14 @@ func TestConfig_Structs(t *testing.T) {
 			APIKeyID:       "tfk_test",
 			APIKeySecret:   "tfs_test",
 			Endpoint:       "localhost:4317",
-			ServiceName:    "order-api",
+			ServiceName:    "Order-Service",
 			ServiceVersion: "1.1.1",
 		}
 
 		assert.Equal(t, "tfk_test", cfg.APIKeyID)
 		assert.Equal(t, "tfs_test", cfg.APIKeySecret)
 		assert.Equal(t, "localhost:4317", cfg.Endpoint)
-		assert.Equal(t, "order-api", cfg.ServiceName)
+		assert.Equal(t, "Order-Service", cfg.ServiceName)
 		assert.Equal(t, "1.1.1", cfg.ServiceVersion)
 	})
 
@@ -162,7 +162,7 @@ func TestConfig_Complete(t *testing.T) {
 				APIKeyID:       "tfk_test",
 				APIKeySecret:   "tfs_test",
 				Endpoint:       "localhost:4317",
-				ServiceName:    "order-api",
+				ServiceName:    "Order-Service",
 				ServiceVersion: "1.1.1",
 			},
 			Log: config.LogConfig{

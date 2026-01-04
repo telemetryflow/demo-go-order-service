@@ -1,8 +1,8 @@
 # Entity Relationship Diagram (ERD)
 
-## order-service
+## Order-Service
 
-This document describes the database schema for order-api.
+This document describes the database schema for Order-Service.
 
 ## Diagram
 

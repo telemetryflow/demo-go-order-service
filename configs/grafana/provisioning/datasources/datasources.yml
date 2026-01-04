@@ -1,0 +1,48 @@
+# =============================================================================
+# Grafana Datasources - Order Service Observability
+# =============================================================================
+# Pre-configured datasources for metrics (Prometheus) and traces (Jaeger)
+# Exemplars are enabled to link metrics to traces
+# =============================================================================
+
+apiVersion: 1
+
+datasources:
+  # Prometheus - Metrics with Exemplars
+  - name: Prometheus
+    type: prometheus
+    access: proxy
+    url: http://prometheus:9090
+    isDefault: true
+    editable: true
+    jsonData:
+      httpMethod: POST
+      exemplarTraceIdDestinations:
+        - name: trace_id
+          datasourceUid: jaeger
+      timeout: 60
+
+  # Jaeger - Distributed Traces
+  - name: Jaeger
+    type: jaeger
+    uid: jaeger
+    access: proxy
+    url: http://jaeger:16686
+    editable: true
+    jsonData:
+      tracesToLogsV2:
+        datasourceUid: ''
+        spanStartTimeShift: '-1h'
+        spanEndTimeShift: '1h'
+        filterByTraceID: true
+        filterBySpanID: false
+      tracesToMetrics:
+        datasourceUid: Prometheus
+        spanStartTimeShift: '-1h'
+        spanEndTimeShift: '1h'
+      nodeGraph:
+        enabled: true
+      traceQuery:
+        timeShiftEnabled: true
+        spanStartTimeShift: '-1h'
+        spanEndTimeShift: '1h'

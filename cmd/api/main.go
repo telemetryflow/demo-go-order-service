@@ -1,7 +1,7 @@
-// Package main is the entry point for order-service API.
+// Package main is the entry point for Order-Service API.
 //
-// order-api - RESTful API with DDD + CQRS Pattern
-// Copyright (c) 2024-2026 order-service. All rights reserved.
+// Order-Service - RESTful API with DDD + CQRS Pattern
+// Copyright (c) 2024-2026 Order-Service. All rights reserved.
 package main
 
 import (
@@ -56,7 +56,7 @@ func main() {
 		}
 	}()
 
-	log.Printf("order-api v1.1.1 started on port %s", cfg.Server.Port)
+	log.Printf("Order-Service API v1.1.2 started on port %s", cfg.Server.Port)
 
 	// Wait for interrupt signal
 	quit := make(chan os.Signal, 1)

@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 /**
- * Generate Secure Secrets for order-service
+ * Generate Secure Secrets for Order-Service
  *
  * Usage:
  *   node scripts/generate-secrets.js              # Generate all secrets
@@ -50,7 +50,7 @@ for (let i = 0; i < args.length; i++) {
     case '--help':
     case '-h':
       console.log(`
-order-service - Secure Secret Generator
+Order-Service - Secure Secret Generator
 
 Usage:
   node scripts/generate-secrets.js [options]
@@ -143,7 +143,7 @@ if (envOnly) {
 } else {
   // Decorated output
   console.log('\n=============================================');
-  console.log('  order-service - Secret Generator');
+  console.log('  Order-Service - Secret Generator');
   console.log('=============================================\n');
 
   if (generateApiKeys) {
@@ -190,7 +190,7 @@ if (envOnly) {
     dockerEnvs.push(`  -e SESSION_SECRET="${secrets.SESSION_SECRET}"`);
   }
   console.log(`docker run -d \\\n${dockerEnvs.join(' \\\n')} \\`);
-  console.log('  order-service:latest\n');
+  console.log('  Order-Service:latest\n');
 
   console.log('Security Tips:');
   console.log('--------------');

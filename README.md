@@ -7,7 +7,7 @@
     <img src="https://github.com/telemetryflow/.github/raw/main/docs/assets/tfo-logo-sdk-light.svg" alt="TelemetryFlow Logo" width="80%">
   </picture>
 
-[![Version](https://img.shields.io/badge/Version-1.1.1-orange.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/Version-1.1.2-orange.svg)](CHANGELOG.md)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![Go Version](https://img.shields.io/badge/Go-1.24+-00ADD8?logo=go)](https://golang.org/)
 [![OpenTelemetry](https://img.shields.io/badge/OTLP-100%25%20Compliant-success?logo=opentelemetry)](https://opentelemetry.io/)
@@ -28,7 +28,7 @@
 This project follows **Domain-Driven Design (DDD)** with **CQRS (Command Query Responsibility Segregation)** pattern.
 
 ```
-order-service/
+Order-Service/
 ├── cmd/
 │   └── api/                    # Application entry point
 ├── internal/
@@ -124,7 +124,41 @@ docker logs -f order_service_otel
 |---------|-----------|------|-------------|
 | PostgreSQL | `order_service_postgres` | 5432 | Database |
 | API | `order_service_api` | 8080 | RESTful API |
-| OTEL Collector | `order_service_otel` | 4317, 4318, 8889, 13133 | OpenTelemetry Collector |
+| OTEL Collector | `order_service_otel` | 4317, 4318, 8889, 13133, 55679, 1777 | OpenTelemetry Collector |
+| Jaeger | `order_service_jaeger` | 16686 | Distributed Tracing UI |
+
+### OTEL Collector Ports
+
+| Port  | Protocol | Description           |
+| ----- | -------- | --------------------- |
+| 4317  | gRPC     | OTLP gRPC (v1 & v2)   |
+| 4318  | HTTP     | OTLP HTTP (v1 & v2)   |
+| 8889  | HTTP     | Prometheus metrics    |
+| 13133 | HTTP     | Health check          |
+| 55679 | HTTP     | zPages (debugging)    |
+| 1777  | HTTP     | pprof (profiling)     |
+
+### OTLP Endpoints (Dual Ingestion)
+
+The collector supports both TelemetryFlow (v2) and OTEL Community (v1) endpoints:
+
+**TelemetryFlow Platform (Recommended):**
+
+```text
+POST http://localhost:4318/v2/traces
+POST http://localhost:4318/v2/metrics
+POST http://localhost:4318/v2/logs
+```
+
+**OTEL Community (Backwards Compatible):**
+
+```text
+POST http://localhost:4318/v1/traces
+POST http://localhost:4318/v1/metrics
+POST http://localhost:4318/v1/logs
+```
+
+**gRPC:** `localhost:4317` (both v1 and v2)
 
 ### Network Configuration
 
@@ -239,7 +273,7 @@ Configuration is loaded from environment variables and `.env` file.
 | `TELEMETRYFLOW_API_KEY_ID` | TelemetryFlow API Key ID | - |
 | `TELEMETRYFLOW_API_KEY_SECRET` | TelemetryFlow API Key Secret | - |
 | `TELEMETRYFLOW_ENDPOINT` | OTLP endpoint | `localhost:4317` |
-| `TELEMETRYFLOW_SERVICE_NAME` | Service name | `order-api` |
+| `TELEMETRYFLOW_SERVICE_NAME` | Service name | `Order-Service` |
 | `TELEMETRYFLOW_SERVICE_VERSION` | Service version | `1.1.1` |
 
 ### Docker Compose Configuration

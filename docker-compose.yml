@@ -20,6 +20,10 @@ networks:
 volumes:
   vol_postgres_data:
     driver: local
+  vol_prometheus_data:
+    driver: local
+  vol_grafana_data:
+    driver: local
 
 #================================================================================================
 # SERVICES
@@ -32,7 +36,7 @@ services:
     profiles: ["db", "all"]
     platform: linux/amd64
     image: postgres:${POSTGRES_VERSION:-16-alpine}
-    container_name: ${CONTAINER_POSTGRES:-order_service_postgres}
+    container_name: ${CONTAINER_POSTGRES:-TFO-SDK-PostgreSQL}
     restart: unless-stopped
     ports:
       - "${PORT_POSTGRES:-5432}:5432"
@@ -63,7 +67,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: ${CONTAINER_API:-order_service_api}
+    container_name: ${CONTAINER_API:-TFO-SDK-Order-Service}
     restart: unless-stopped
     ports:
       - "${PORT:-8080}:8080"
@@ -100,7 +104,7 @@ services:
       - TELEMETRYFLOW_API_KEY_ID=${TELEMETRYFLOW_API_KEY_ID}
       - TELEMETRYFLOW_API_KEY_SECRET=${TELEMETRYFLOW_API_KEY_SECRET}
       - TELEMETRYFLOW_ENDPOINT=otel-collector:4317
-      - TELEMETRYFLOW_SERVICE_NAME=${TELEMETRYFLOW_SERVICE_NAME:-order-api}
+      - TELEMETRYFLOW_SERVICE_NAME=${TELEMETRYFLOW_SERVICE_NAME:-Order-Service}
       - TELEMETRYFLOW_SERVICE_VERSION=${TELEMETRYFLOW_SERVICE_VERSION:-1.1.1}
       - TELEMETRYFLOW_INSECURE=${TELEMETRYFLOW_INSECURE:-true}
 
@@ -144,23 +148,25 @@ services:
     profiles: ["monitoring", "all"]
     platform: linux/amd64
     # =============================================================================
-    # TelemetryFlow Collector (TFO-Collector) - Custom TFO format with OTLP support (v1.1.1+)
-    image: telemetryflow/telemetryflow-collector:${TFO_VERSION:-latest}
+    # TelemetryFlow Collector (TFO-Collector) - TFO format with OTLP support (v1.1.2+)
+    image: telemetryflow/telemetryflow-collector:${TFO_VERSION:-1.1.2}
     command: ["--config=/etc/tfo-collector/tfo-collector.yaml"]
     # =============================================================================
     # TelemetryFlow Collector OCB (TFO-Collector-OCB) - Standard OTEL format
-    # image: telemetryflow/telemetryflow-collector-ocb:${TFO_VERSION:-latest}
+    # image: telemetryflow/telemetryflow-collector:${TFO_VERSION:-1.1.2}
     # command: ["--config=/etc/tfo-collector/otel-collector.yaml"]
     # =============================================================================
     # OTEL Collector Community Contributor (Standard OTEL format)
     # image: otel/opentelemetry-collector-contrib:${OTEL_VERSION:-0.142.0}
     # command: ["--config=/etc/otelcol-contrib/config.yaml"]
     # =============================================================================
-    container_name: ${CONTAINER_OTEL:-order_service_otel}
+    container_name: ${CONTAINER_OTEL:-TFO-SDK-OTEL}
     restart: unless-stopped
     volumes:
       # TelemetryFlow Collector config (Custom TFO format)
       - ./configs/otel/tfo-collector.yaml:/etc/tfo-collector/tfo-collector.yaml:ro
+      # Logs output directory
+      - ./logs:/tmp/logs
       # =============================================================================
       # TelemetryFlow Collector OCB config (Standard OTEL format)
       # - ./configs/otel/otel-collector.yaml:/etc/tfo-collector/otel-collector.yaml:ro
@@ -192,8 +198,8 @@ services:
   jaeger:
     profiles: ["monitoring", "all"]
     platform: linux/amd64
-    image: jaegertracing/jaeger:${JAEGER_VERSION:-2.2.0}
-    container_name: ${CONTAINER_JAEGER:-order_service_jaeger}
+    image: jaegertracing/jaeger:${JAEGER_VERSION:-2.13.0}
+    container_name: ${CONTAINER_JAEGER:-TFO-SDK-Jaeger}
     restart: unless-stopped
     ports:
       - "${PORT_JAEGER_UI:-16686}:16686"  # Jaeger UI
@@ -208,3 +214,66 @@ services:
       timeout: 5s
       retries: 5
       start_period: 10s
+
+  #----------------------------------------------------------------------------------------------
+  # PROMETHEUS - Metrics Collection with Exemplars Support
+  #----------------------------------------------------------------------------------------------
+  prometheus:
+    profiles: ["monitoring", "all"]
+    platform: linux/amd64
+    image: prom/prometheus:${PROMETHEUS_VERSION:-v3.4.0}
+    container_name: ${CONTAINER_PROMETHEUS:-TFO-SDK-Prometheus}
+    restart: unless-stopped
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.enable-lifecycle'
+      - '--web.enable-remote-write-receiver'
+      - '--enable-feature=exemplar-storage'
+      - '--enable-feature=native-histograms'
+    ports:
+      - "${PORT_PROMETHEUS:-9090}:9090"
+    volumes:
+      - ./configs/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - vol_prometheus_data:/prometheus
+    networks:
+      order_service_net:
+        ipv4_address: ${CONTAINER_IP_PROMETHEUS:-172.152.152.50}
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:9090/-/healthy"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  #----------------------------------------------------------------------------------------------
+  # GRAFANA - Observability Dashboard with Exemplars Visualization
+  #----------------------------------------------------------------------------------------------
+  grafana:
+    profiles: ["monitoring", "all"]
+    platform: linux/amd64
+    image: grafana/grafana:${GRAFANA_VERSION:-12.3.1}
+    container_name: ${CONTAINER_GRAFANA:-TFO-SDK-Grafana}
+    restart: unless-stopped
+    ports:
+      - "${PORT_GRAFANA:-3000}:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=${GRAFANA_ADMIN_USER:-admin}
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:-admin}
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_FEATURE_TOGGLES_ENABLE=traceqlEditor tempoSearch tempoBackendSearch tempoApmTable
+    volumes:
+      - ./configs/grafana/provisioning:/etc/grafana/provisioning:ro
+      - vol_grafana_data:/var/lib/grafana
+    networks:
+      order_service_net:
+        ipv4_address: ${CONTAINER_IP_GRAFANA:-172.152.152.60}
+    depends_on:
+      - prometheus
+      - jaeger
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:3000/api/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s

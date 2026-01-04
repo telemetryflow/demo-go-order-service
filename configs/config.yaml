@@ -1,4 +1,4 @@
-# order-service Configuration
+# Order-Service Configuration
 
 server:
   port: "8080"
@@ -29,9 +29,9 @@ ratelimit:
 telemetry:
   # api_key_id: from environment variable TELEMETRYFLOW_API_KEY_ID
   # api_key_secret: from environment variable TELEMETRYFLOW_API_KEY_SECRET
-  endpoint: api.telemetryflow.id:4317
-  service_name: order-api
-  service_version: 1.1.1
+  endpoint: localhost:4317
+  service_name: Order-Service
+  service_version: 1.1.2
 
 log:
   level: info

@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"github.com/labstack/echo/v4"
+	"github.com/telemetryflow/order-service/telemetry/logs"
 )
 
 // Response represents a standard API response
@@ -75,6 +76,22 @@ func Paginated(c echo.Context, data interface{}, totalCount int64, page, pageSiz
 
 // Error sends an error response
 func Error(c echo.Context, status int, code, message string) error {
+	logAttrs := map[string]interface{}{
+		"code":       code,
+		"message":    message,
+		"status":     status,
+		"method":     c.Request().Method,
+		"path":       c.Request().URL.Path,
+		"request_id": c.Response().Header().Get(echo.HeaderXRequestID),
+		"remote_ip":  c.RealIP(),
+	}
+
+	if status >= 500 {
+		logs.Error("API error", logAttrs)
+	} else if status >= 400 {
+		logs.Warn("API client error", logAttrs)
+	}
+
 	return c.JSON(status, Response{
 		Success: false,
 		Error: &ErrorInfo{
@@ -86,6 +103,23 @@ func Error(c echo.Context, status int, code, message string) error {
 
 // ErrorWithDetails sends an error response with details
 func ErrorWithDetails(c echo.Context, status int, code, message string, details map[string]string) error {
+	logAttrs := map[string]interface{}{
+		"code":       code,
+		"message":    message,
+		"status":     status,
+		"method":     c.Request().Method,
+		"path":       c.Request().URL.Path,
+		"request_id": c.Response().Header().Get(echo.HeaderXRequestID),
+		"remote_ip":  c.RealIP(),
+		"details":    details,
+	}
+
+	if status >= 500 {
+		logs.Error("API error", logAttrs)
+	} else if status >= 400 {
+		logs.Warn("API client error", logAttrs)
+	}
+
 	return c.JSON(status, Response{
 		Success: false,
 		Error: &ErrorInfo{

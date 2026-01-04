@@ -16,8 +16,11 @@ RUN go mod download
 # Copy source code
 COPY . .
 
+# Ensure all dependencies are resolved
+RUN go mod tidy
+
 # Build the application
-RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o /app/order-service ./cmd/api
+RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o /app/Order-Service ./cmd/api
 
 # Runtime stage
 FROM alpine:3.21
@@ -29,7 +32,7 @@ RUN apk upgrade --no-cache && \
     apk add --no-cache ca-certificates tzdata
 
 # Copy binary from builder
-COPY --from=builder /app/order-service .
+COPY --from=builder /app/Order-Service .
 COPY --from=builder /app/configs ./configs
 COPY --from=builder /app/migrations ./migrations
 
@@ -51,4 +54,4 @@ HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
     CMD wget --no-verbose --tries=1 --spider http://localhost:8080/health || exit 1
 
 # Run the application
-ENTRYPOINT ["./order-service"]
+ENTRYPOINT ["./Order-Service"]

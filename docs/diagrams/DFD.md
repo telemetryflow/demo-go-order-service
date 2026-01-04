@@ -1,8 +1,8 @@
 # Data Flow Diagram (DFD)
 
-## order-service
+## Order-Service
 
-This document describes the data flow for order-api.
+This document describes the data flow for Order-Service.
 
 ## Level 0 - Context Diagram
 
@@ -14,7 +14,7 @@ graph LR
     end
 
     subgraph System
-        API[order-service API]
+        API[Order-Service API]
         DB[(Database)]
     end
 

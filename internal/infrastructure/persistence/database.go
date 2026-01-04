@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"log"
 
+	"github.com/uptrace/opentelemetry-go-extra/otelgorm"
+
 	"github.com/telemetryflow/order-service/internal/infrastructure/config"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
@@ -44,6 +46,11 @@ func NewDatabase(cfg config.DatabaseConfig) (*gorm.DB, error) {
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to open database: %w", err)
+	}
+
+	// OpenTelemetry auto-instrumentation for database
+	if err := db.Use(otelgorm.NewPlugin()); err != nil {
+		return nil, fmt.Errorf("failed to enable otelgorm plugin: %w", err)
 	}
 
 	// Get underlying sql.DB to configure connection pool

@@ -1,8 +1,8 @@
 openapi: 3.0.3
 info:
-  title: order-service API
+  title: Order-Service API
   description: |
-    order-api - RESTful API with DDD + CQRS Pattern
+    Order-Service - RESTful API with DDD + CQRS Pattern
 
     ## Architecture
     This API follows Domain-Driven Design (DDD) with CQRS pattern.

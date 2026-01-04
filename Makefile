@@ -1,14 +1,14 @@
-# order-service - Makefile
+# Order-Service - Makefile
 #
-# order-api - RESTful API with DDD + CQRS Pattern
-# Copyright (c) 2024-2026 order-service. All rights reserved.
+# Order-Service - RESTful API with DDD + CQRS Pattern
+# Copyright (c) 2024-2026 Order-Service. All rights reserved.
 
 # Build configuration
-BINARY_NAME := order-service
+BINARY_NAME := Order-Service
 VERSION ?= 1.1.0
 GIT_COMMIT := $(shell git rev-parse --short HEAD 2>/dev/null || echo "unknown")
 GIT_BRANCH := $(shell git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "unknown")
-PRODUCT_NAME := order-service
+PRODUCT_NAME := Order-Service
 BUILD_TIME := $(shell date -u '+%Y-%m-%dT%H:%M:%SZ')
 GO_VERSION := $(shell go version | cut -d ' ' -f 3)
 
@@ -46,7 +46,7 @@ NC := \033[0m
 all: build
 
 help:
-	@echo "$(GREEN)order-service - Build System$(NC)"
+	@echo "$(GREEN)Order-Service - Build System$(NC)"
 	@echo ""
 	@echo "$(YELLOW)Build Commands:$(NC)"
 	@echo "  make build              - Build the application"
@@ -228,11 +228,11 @@ clean:
 ## Docker
 docker-build:
 	@echo "$(GREEN)Building Docker image...$(NC)"
-	docker build -t order-service:$(VERSION) .
+	docker build -t Order-Service:$(VERSION) .
 
 docker-run:
 	@echo "$(GREEN)Running Docker container...$(NC)"
-	docker run -p 8080:8080 --env-file .env order-service:$(VERSION)
+	docker run -p 8080:8080 --env-file .env Order-Service:$(VERSION)
 
 docker-compose-up:
 	@echo "$(GREEN)Starting services...$(NC)"

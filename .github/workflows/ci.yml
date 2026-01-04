@@ -60,7 +60,7 @@ on:
 env:
   GO_VERSION: '1.24'
   PRODUCT_NAME: Order Service
-  BINARY_NAME: order-service
+  BINARY_NAME: Order-Service
   # Bypass Go proxy for TelemetryFlow private modules
   GOPRIVATE: github.com/telemetryflow/*
 
@@ -237,7 +237,7 @@ jobs:
       - name: Run E2E tests
         run: make test-e2e-ci
         env:
-          ORDER_SERVICE_BINARY: ./build/order-service
+          ORDER_SERVICE_BINARY: ./build/Order-Service
           DB_HOST: localhost
           DB_PORT: 5432
           DB_USER: postgres

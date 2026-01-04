@@ -1,5 +1,5 @@
 {
-  "name": "order-service - Development",
+  "name": "Order Service - Development",
   "values": [
     {
       "key": "baseUrl",
@@ -38,6 +38,30 @@
       "enabled": true
     },
     {
+      "key": "orderId",
+      "value": "",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "orderItemId",
+      "value": "",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "customerId",
+      "value": "",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "productId",
+      "value": "",
+      "type": "default",
+      "enabled": true
+    },
+    {
       "key": "dbHost",
       "value": "localhost",
       "type": "default",
@@ -53,6 +77,18 @@
       "key": "dbName",
       "value": "orders",
       "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "dbUser",
+      "value": "postgres",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "dbPassword",
+      "value": "",
+      "type": "secret",
       "enabled": true
     }
   ],

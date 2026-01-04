@@ -36,7 +36,7 @@ on:
 
 env:
   GO_VERSION: '1.24'
-  BINARY_NAME: order-service
+  BINARY_NAME: Order-Service
   PRODUCT_NAME: Order Service
   VENDOR: DevOpsCorner Indonesia
   MAINTAINER: support@telemetryflow.id
@@ -630,7 +630,7 @@ jobs:
           New-Item -ItemType Directory -Force -Path $LogDir | Out-Null
 
           # Copy files
-          Copy-Item -Path ".\order-service.exe" -Destination "$InstallDir\" -Force
+          Copy-Item -Path ".\Order-Service.exe" -Destination "$InstallDir\" -Force
           if (Test-Path ".\configs") {
               Copy-Item -Path ".\configs\*" -Destination "$ConfigDir\" -Recurse -Force
           }
@@ -648,7 +648,7 @@ jobs:
               sc.exe delete $ServiceName
           }
 
-          $binPath = "`"$InstallDir\order-service.exe`""
+          $binPath = "`"$InstallDir\Order-Service.exe`""
           New-Service -Name $ServiceName `
                       -DisplayName "TelemetryFlow Order Service" `
                       -Description "Order management microservice for TelemetryFlow platform" `
@@ -704,7 +704,7 @@ jobs:
           3. Run: .\install.ps1
 
           Usage:
-          order-service.exe
+          Order-Service.exe
 
           Environment Variables:
           - DB_HOST: PostgreSQL host (default: localhost)
@@ -782,10 +782,10 @@ jobs:
           set -e
 
           INSTALL_DIR="/usr/local/bin"
-          CONFIG_DIR="/etc/order-service"
-          DATA_DIR="/var/lib/order-service"
-          LOG_DIR="/var/log/order-service"
-          LAUNCH_DAEMON="/Library/LaunchDaemons/id.telemetryflow.order-service.plist"
+          CONFIG_DIR="/etc/Order-Service"
+          DATA_DIR="/var/lib/Order-Service"
+          LOG_DIR="/var/log/Order-Service"
+          LAUNCH_DAEMON="/Library/LaunchDaemons/id.telemetryflow.Order-Service.plist"
 
           echo "Installing Order Service..."
 
@@ -795,8 +795,8 @@ jobs:
           sudo mkdir -p "${LOG_DIR}"
 
           # Copy binary
-          sudo cp order-service "${INSTALL_DIR}/"
-          sudo chmod +x "${INSTALL_DIR}/order-service"
+          sudo cp Order-Service "${INSTALL_DIR}/"
+          sudo chmod +x "${INSTALL_DIR}/Order-Service"
 
           # Copy config if exists
           if [ -d configs ]; then
@@ -810,19 +810,19 @@ jobs:
           <plist version="1.0">
           <dict>
               <key>Label</key>
-              <string>id.telemetryflow.order-service</string>
+              <string>id.telemetryflow.Order-Service</string>
               <key>ProgramArguments</key>
               <array>
-                  <string>/usr/local/bin/order-service</string>
+                  <string>/usr/local/bin/Order-Service</string>
               </array>
               <key>RunAtLoad</key>
               <true/>
               <key>KeepAlive</key>
               <true/>
               <key>StandardOutPath</key>
-              <string>/var/log/order-service/order-service.log</string>
+              <string>/var/log/Order-Service/Order-Service.log</string>
               <key>StandardErrorPath</key>
-              <string>/var/log/order-service/order-service-error.log</string>
+              <string>/var/log/Order-Service/Order-Service-error.log</string>
               <key>EnvironmentVariables</key>
               <dict>
                   <key>SERVER_PORT</key>
@@ -842,7 +842,7 @@ jobs:
           echo "  sudo launchctl unload ${LAUNCH_DAEMON}"
           echo ""
           echo "To check status:"
-          echo "  sudo launchctl list | grep order-service"
+          echo "  sudo launchctl list | grep Order-Service"
           EOF
           chmod +x "${DMG_DIR}/install.sh"
 
@@ -853,7 +853,7 @@ jobs:
 
           set -e
 
-          LAUNCH_DAEMON="/Library/LaunchDaemons/id.telemetryflow.order-service.plist"
+          LAUNCH_DAEMON="/Library/LaunchDaemons/id.telemetryflow.Order-Service.plist"
 
           echo "Uninstalling Order Service..."
 
@@ -864,10 +864,10 @@ jobs:
           fi
 
           # Remove binary
-          sudo rm -f /usr/local/bin/order-service
+          sudo rm -f /usr/local/bin/Order-Service
 
           echo "Order Service uninstalled successfully!"
-          echo "Configuration files are preserved in /etc/order-service/"
+          echo "Configuration files are preserved in /etc/Order-Service/"
           EOF
           chmod +x "${DMG_DIR}/uninstall.sh"
 
@@ -883,7 +883,7 @@ jobs:
           3. Run: ./install.sh
 
           Usage:
-          order-service
+          Order-Service
 
           Environment Variables:
           - DB_HOST: PostgreSQL host (default: localhost)
@@ -1075,23 +1075,23 @@ jobs:
 
             **Linux (DEB - Debian/Ubuntu):**
             ```bash
-            sudo dpkg -i order-service_${{ needs.prepare.outputs.version }}_amd64.deb
-            sudo systemctl start order-service
-            sudo systemctl enable order-service
+            sudo dpkg -i Order-Service_${{ needs.prepare.outputs.version }}_amd64.deb
+            sudo systemctl start Order-Service
+            sudo systemctl enable Order-Service
             ```
 
             **Linux (RPM - RHEL/CentOS/Fedora):**
             ```bash
-            sudo rpm -i order-service-${{ needs.prepare.outputs.version }}-1.x86_64.rpm
-            sudo systemctl start order-service
-            sudo systemctl enable order-service
+            sudo rpm -i Order-Service-${{ needs.prepare.outputs.version }}-1.x86_64.rpm
+            sudo systemctl start Order-Service
+            sudo systemctl enable Order-Service
             ```
 
             **Linux (tarball):**
             ```bash
-            tar -xzf order-service-${{ needs.prepare.outputs.version }}-linux-amd64.tar.gz
-            cd order-service-${{ needs.prepare.outputs.version }}-linux-amd64
-            ./order-service
+            tar -xzf Order-Service-${{ needs.prepare.outputs.version }}-linux-amd64.tar.gz
+            cd Order-Service-${{ needs.prepare.outputs.version }}-linux-amd64
+            ./Order-Service
             ```
 
             **macOS:**
@@ -1120,16 +1120,16 @@ jobs:
 
             **Linux (systemd):**
             ```bash
-            sudo systemctl start order-service
-            sudo systemctl stop order-service
-            sudo systemctl status order-service
-            journalctl -u order-service -f
+            sudo systemctl start Order-Service
+            sudo systemctl stop Order-Service
+            sudo systemctl status Order-Service
+            journalctl -u Order-Service -f
             ```
 
             **macOS (launchd):**
             ```bash
-            sudo launchctl load /Library/LaunchDaemons/id.telemetryflow.order-service.plist
-            sudo launchctl unload /Library/LaunchDaemons/id.telemetryflow.order-service.plist
+            sudo launchctl load /Library/LaunchDaemons/id.telemetryflow.Order-Service.plist
+            sudo launchctl unload /Library/LaunchDaemons/id.telemetryflow.Order-Service.plist
             ```
 
             **Windows:**
