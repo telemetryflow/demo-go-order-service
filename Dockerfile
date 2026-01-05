@@ -17,6 +17,7 @@ RUN go mod download
 COPY . .
 
 # Ensure all dependencies are resolved
+RUN make deps-refresh
 RUN go mod tidy
 
 # Build the application
