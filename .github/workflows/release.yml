@@ -181,7 +181,7 @@ jobs:
           cache: true
 
       - name: Download dependencies
-        run: make deps
+        run: make deps-refresh && make deps
 
       - name: Build binary
         run: make ci-build
