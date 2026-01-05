@@ -25,9 +25,9 @@ func NewSwaggerHandler(title string) *SwaggerHandler {
 
 // RegisterRoutes registers swagger routes
 func (h *SwaggerHandler) RegisterRoutes(e *echo.Echo) {
-	e.GET("/swagger", h.SwaggerUI)
-	e.GET("/swagger/", h.SwaggerUI)
-	e.GET("/swagger/spec/swagger.json", h.SwaggerSpec)
+	e.GET("/docs", h.SwaggerUI)
+	e.GET("/docs/", h.SwaggerUI)
+	e.GET("/docs/spec/swagger.json", h.SwaggerSpec)
 }
 
 // SwaggerUI serves the Swagger UI page
@@ -39,7 +39,7 @@ func (h *SwaggerHandler) SwaggerUI(c echo.Context) error {
 
 	c.Response().Header().Set(echo.HeaderContentType, echo.MIMETextHTMLCharsetUTF8)
 	return tmpl.Execute(c.Response().Writer, map[string]string{
-		"SpecURL": "/swagger/spec/swagger.json",
+		"SpecURL": "/docs/spec/swagger.json",
 		"Title":   h.title,
 	})
 }

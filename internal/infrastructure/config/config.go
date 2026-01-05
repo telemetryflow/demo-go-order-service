@@ -102,7 +102,7 @@ func Load() (*Config, error) {
 	viper.SetDefault("ratelimit.window", "1m")
 	viper.SetDefault("telemetry.endpoint", "api.telemetryflow.id:4317")
 	viper.SetDefault("telemetry.service_name", "Order-Service")
-	viper.SetDefault("telemetry.service_version", "1.1.1")
+	viper.SetDefault("telemetry.service_version", "1.1.2")
 
 	viper.SetDefault("log.level", "info")
 	viper.SetDefault("log.format", "json")

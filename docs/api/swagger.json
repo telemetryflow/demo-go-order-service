@@ -2,7 +2,7 @@
   "openapi": "3.0.3",
   "info": {
     "title": "Order Service API",
-    "description": "Order Service - RESTful API with DDD + CQRS Pattern\n\nThis API provides endpoints for managing orders and order items with full observability support (traces, metrics, logs).",
+    "description": "Order Service - RESTful API with DDD + CQRS Pattern\n\nThis API provides endpoints for managing orders and order items with full observability support (traces, metrics, logs).\n\n## Architecture\nThis API follows Domain-Driven Design (DDD) with CQRS pattern.\n\n## Authentication\nAPI uses JWT Bearer token authentication. Include the token in the Authorization header:\n```\nAuthorization: Bearer <token>\n```",
     "version": "1.1.2",
     "contact": {
       "name": "API Support",
@@ -586,7 +586,14 @@
           },
           "status": {
             "type": "string",
-            "enum": ["pending", "confirmed", "processing", "shipped", "delivered", "cancelled"],
+            "enum": [
+              "pending",
+              "confirmed",
+              "processing",
+              "shipped",
+              "delivered",
+              "cancelled"
+            ],
             "example": "pending"
           },
           "created_at": {
@@ -664,7 +671,14 @@
           },
           "status": {
             "type": "string",
-            "enum": ["pending", "confirmed", "processing", "shipped", "delivered", "cancelled"]
+            "enum": [
+              "pending",
+              "confirmed",
+              "processing",
+              "shipped",
+              "delivered",
+              "cancelled"
+            ]
           }
         }
       },

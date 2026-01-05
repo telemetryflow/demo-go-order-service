@@ -1,8 +1,10 @@
 openapi: 3.0.3
 info:
-  title: Order-Service API
+  title: Order Service API
   description: |
-    Order-Service - RESTful API with DDD + CQRS Pattern
+    Order Service - RESTful API with DDD + CQRS Pattern
+
+    This API provides endpoints for managing orders and order items with full observability support (traces, metrics, logs).
 
     ## Architecture
     This API follows Domain-Driven Design (DDD) with CQRS pattern.
@@ -12,11 +14,10 @@ info:
     ```
     Authorization: Bearer <token>
     ```
-
-  version: 1.1.1
+  version: 1.1.2
   contact:
     name: API Support
-    email: support@example.com
+    email: support@telemetryflow.id
   license:
     name: Apache 2.0
     url: https://www.apache.org/licenses/LICENSE-2.0
@@ -30,8 +31,10 @@ servers:
 tags:
   - name: Health
     description: Health check endpoints
-  - name: Auth
-    description: Authentication endpoints
+  - name: Orders
+    description: Order management endpoints
+  - name: Order Items
+    description: Order item management endpoints
 
 paths:
   /health:
@@ -39,36 +42,326 @@ paths:
       tags:
         - Health
       summary: Health check
-      description: Returns the health status of the service
+      description: Check if the service is healthy
       operationId: health
+      security: []
       responses:
-        '200':
+        "200":
           description: Service is healthy
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/HealthResponse'
+                $ref: "#/components/schemas/HealthResponse"
 
   /ready:
     get:
       tags:
         - Health
       summary: Readiness check
-      description: Returns the readiness status including dependency checks
+      description: Check if the service is ready to accept requests
       operationId: ready
+      security: []
       responses:
-        '200':
+        "200":
           description: Service is ready
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/HealthResponse'
-        '503':
-          description: Service is not ready
+                $ref: "#/components/schemas/HealthResponse"
+
+  /api/v1/orders:
+    get:
+      tags:
+        - Orders
+      summary: List orders
+      description: Get a paginated list of all orders
+      operationId: listOrders
+      parameters:
+        - name: limit
+          in: query
+          description: Number of items to return
+          schema:
+            type: integer
+            default: 10
+            minimum: 1
+            maximum: 100
+        - name: offset
+          in: query
+          description: Number of items to skip
+          schema:
+            type: integer
+            default: 0
+            minimum: 0
+      responses:
+        "200":
+          description: List of orders
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/HealthResponse'
+                $ref: "#/components/schemas/OrderListResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/InternalError"
+    post:
+      tags:
+        - Orders
+      summary: Create order
+      description: Create a new order
+      operationId: createOrder
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateOrderRequest"
+      responses:
+        "201":
+          description: Order created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /api/v1/orders/{id}:
+    get:
+      tags:
+        - Orders
+      summary: Get order by ID
+      description: Get a specific order by its ID
+      operationId: getOrderById
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Order ID (UUID)
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Order details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OrderResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    put:
+      tags:
+        - Orders
+      summary: Update order
+      description: Update an existing order
+      operationId: updateOrder
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Order ID (UUID)
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateOrderRequest"
+      responses:
+        "200":
+          description: Order updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
+    delete:
+      tags:
+        - Orders
+      summary: Delete order
+      description: Delete an order
+      operationId: deleteOrder
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Order ID (UUID)
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "204":
+          description: Order deleted
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /api/v1/order-items:
+    get:
+      tags:
+        - Order Items
+      summary: List order items
+      description: Get a paginated list of all order items
+      operationId: listOrderItems
+      parameters:
+        - name: limit
+          in: query
+          description: Number of items to return
+          schema:
+            type: integer
+            default: 10
+            minimum: 1
+            maximum: 100
+        - name: offset
+          in: query
+          description: Number of items to skip
+          schema:
+            type: integer
+            default: 0
+            minimum: 0
+      responses:
+        "200":
+          description: List of order items
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OrderItemListResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/InternalError"
+    post:
+      tags:
+        - Order Items
+      summary: Create order item
+      description: Create a new order item
+      operationId: createOrderItem
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateOrderItemRequest"
+      responses:
+        "201":
+          description: Order item created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /api/v1/order-items/{id}:
+    get:
+      tags:
+        - Order Items
+      summary: Get order item by ID
+      description: Get a specific order item by its ID
+      operationId: getOrderItemById
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Order Item ID (UUID)
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Order item details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OrderItemResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    put:
+      tags:
+        - Order Items
+      summary: Update order item
+      description: Update an existing order item
+      operationId: updateOrderItem
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Order Item ID (UUID)
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateOrderItemRequest"
+      responses:
+        "200":
+          description: Order item updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
+    delete:
+      tags:
+        - Order Items
+      summary: Delete order item
+      description: Delete an order item
+      operationId: deleteOrderItem
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Order Item ID (UUID)
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "204":
+          description: Order item deleted
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/InternalError"
 
 components:
   schemas:
@@ -84,10 +377,18 @@ components:
         uptime:
           type: string
           example: 1h30m45s
-        checks:
+
+    SuccessResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        message:
+          type: string
+          example: Operation completed successfully
+        data:
           type: object
-          additionalProperties:
-            type: string
 
     ErrorResponse:
       type: object
@@ -100,27 +401,57 @@ components:
           properties:
             code:
               type: string
-              example: VALIDATION_ERROR
+              example: BAD_REQUEST
             message:
               type: string
-              example: Validation failed
+              example: Invalid request
             details:
               type: object
               additionalProperties:
                 type: string
 
-    SuccessResponse:
+    Order:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: 550e8400-e29b-41d4-a716-446655440000
+        customer_id:
+          type: string
+          format: uuid
+          example: 550e8400-e29b-41d4-a716-446655440001
+        total:
+          type: number
+          format: double
+          example: 150.99
+        status:
+          type: string
+          enum:
+            - pending
+            - confirmed
+            - processing
+            - shipped
+            - delivered
+            - cancelled
+          example: pending
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    OrderResponse:
       type: object
       properties:
         success:
           type: boolean
           example: true
-        message:
-          type: string
         data:
-          type: object
+          $ref: "#/components/schemas/Order"
 
-    PaginatedResponse:
+    OrderListResponse:
       type: object
       properties:
         success:
@@ -129,28 +460,220 @@ components:
         data:
           type: array
           items:
-            type: object
+            $ref: "#/components/schemas/Order"
         meta:
-          type: object
-          properties:
-            page:
-              type: integer
-              example: 1
-            page_size:
-              type: integer
-              example: 10
-            total_count:
-              type: integer
-              example: 100
-            total_pages:
-              type: integer
-              example: 10
+          $ref: "#/components/schemas/PaginationMeta"
+
+    CreateOrderRequest:
+      type: object
+      required:
+        - customer_id
+        - total
+        - status
+      properties:
+        customer_id:
+          type: string
+          format: uuid
+          example: 550e8400-e29b-41d4-a716-446655440001
+        total:
+          type: number
+          format: double
+          example: 150.99
+        status:
+          type: string
+          enum:
+            - pending
+            - confirmed
+            - processing
+          example: pending
+
+    UpdateOrderRequest:
+      type: object
+      required:
+        - customer_id
+        - total
+        - status
+      properties:
+        customer_id:
+          type: string
+          format: uuid
+        total:
+          type: number
+          format: double
+        status:
+          type: string
+          enum:
+            - pending
+            - confirmed
+            - processing
+            - shipped
+            - delivered
+            - cancelled
+
+    OrderItem:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        order_id:
+          type: string
+          format: uuid
+        product_id:
+          type: string
+          format: uuid
+        quantity:
+          type: integer
+          minimum: 1
+          example: 2
+        price:
+          type: number
+          format: double
+          example: 49.99
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    OrderItemResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          $ref: "#/components/schemas/OrderItem"
+
+    OrderItemListResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/OrderItem"
+        meta:
+          $ref: "#/components/schemas/PaginationMeta"
+
+    CreateOrderItemRequest:
+      type: object
+      required:
+        - order_id
+        - product_id
+        - quantity
+        - price
+      properties:
+        order_id:
+          type: string
+          format: uuid
+        product_id:
+          type: string
+          format: uuid
+        quantity:
+          type: integer
+          minimum: 1
+          example: 2
+        price:
+          type: number
+          format: double
+          example: 49.99
+
+    UpdateOrderItemRequest:
+      type: object
+      required:
+        - order_id
+        - product_id
+        - quantity
+        - price
+      properties:
+        order_id:
+          type: string
+          format: uuid
+        product_id:
+          type: string
+          format: uuid
+        quantity:
+          type: integer
+          minimum: 1
+        price:
+          type: number
+          format: double
+
+    PaginationMeta:
+      type: object
+      properties:
+        page:
+          type: integer
+          example: 1
+        page_size:
+          type: integer
+          example: 10
+        total_count:
+          type: integer
+          example: 100
+        total_pages:
+          type: integer
+          example: 10
+
+  responses:
+    BadRequest:
+      description: Bad request
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          example:
+            success: false
+            error:
+              code: BAD_REQUEST
+              message: Invalid request body
+
+    Unauthorized:
+      description: Unauthorized
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          example:
+            success: false
+            error:
+              code: UNAUTHORIZED
+              message: Invalid or missing authentication token
+
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          example:
+            success: false
+            error:
+              code: NOT_FOUND
+              message: Resource not found
+
+    InternalError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          example:
+            success: false
+            error:
+              code: INTERNAL_ERROR
+              message: An internal error occurred
+
   securitySchemes:
     bearerAuth:
       type: http
       scheme: bearer
       bearerFormat: JWT
-      description: JWT authentication
+      description: Enter your JWT token
 
 security:
   - bearerAuth: []

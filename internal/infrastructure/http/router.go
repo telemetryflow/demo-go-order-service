@@ -29,6 +29,10 @@ func (s *Server) setupRoutes() {
 	e.GET("/health", healthHandler.Health)
 	e.GET("/ready", healthHandler.Ready)
 
+	// Home endpoint
+	homeHandler := handler.NewHomeHandler()
+	e.GET("/", homeHandler.Home)
+
 	// Swagger documentation
 	swaggerHandler := handler.NewSwaggerHandler("Order Service API")
 	swaggerHandler.RegisterRoutes(e)
