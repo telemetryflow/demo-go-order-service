@@ -50,11 +50,64 @@ permissions:
 
 jobs:
   # ===========================================================================
+  # Update Dependencies - Refresh go.sum if needed
+  # ===========================================================================
+  update-deps:
+    name: Update Dependencies
+    runs-on: ubuntu-latest
+    outputs:
+      deps_updated: ${{ steps.check-changes.outputs.changed }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
+
+      - name: Refresh dependencies
+        run: |
+          echo "Refreshing private module checksums..."
+          go clean -modcache -i github.com/telemetryflow/... 2>/dev/null || true
+          go mod download
+          go mod tidy
+
+      - name: Check for go.sum changes
+        id: check-changes
+        run: |
+          if git diff --quiet go.sum; then
+            echo "No changes to go.sum"
+            echo "changed=false" >> $GITHUB_OUTPUT
+          else
+            echo "go.sum has been updated"
+            echo "changed=true" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Commit updated go.sum
+        if: steps.check-changes.outputs.changed == 'true'
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add go.sum
+          git commit -m "chore(deps): update go.sum checksums
+
+          Automatically updated by Release workflow.
+
+          🤖 Generated with [GitHub Actions](https://github.com/features/actions)"
+          git push
+
+  # ===========================================================================
   # Prepare Release
   # ===========================================================================
   prepare:
     name: Prepare Release
     runs-on: ubuntu-latest
+    needs: update-deps
     outputs:
       version: ${{ steps.version.outputs.version }}
       commit: ${{ steps.version.outputs.commit }}
@@ -64,7 +117,11 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
+          ref: ${{ github.ref }}
           fetch-depth: 0
+
+      - name: Pull latest changes
+        run: git pull --rebase origin ${{ github.ref_name }} || true
 
       - name: Determine version
         id: version
@@ -85,13 +142,19 @@ jobs:
   build-linux:
     name: Build Linux (${{ matrix.arch }})
     runs-on: ubuntu-latest
-    needs: prepare
+    needs: [update-deps, prepare]
     strategy:
       matrix:
         arch: [amd64, arm64]
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref }}
+          fetch-depth: 0
+
+      - name: Pull latest changes
+        run: git pull --rebase origin ${{ github.ref_name }} || true
 
       - name: Set up Go
         uses: actions/setup-go@v5
@@ -100,7 +163,7 @@ jobs:
           cache: true
 
       - name: Download dependencies
-        run: make deps-refresh && make deps
+        run: go mod download
 
       - name: Build binary
         run: make ci-build
@@ -127,10 +190,16 @@ jobs:
   build-windows:
     name: Build Windows (amd64)
     runs-on: ubuntu-latest
-    needs: prepare
+    needs: [update-deps, prepare]
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref }}
+          fetch-depth: 0
+
+      - name: Pull latest changes
+        run: git pull --rebase origin ${{ github.ref_name }} || true
 
       - name: Set up Go
         uses: actions/setup-go@v5
@@ -139,7 +208,7 @@ jobs:
           cache: true
 
       - name: Download dependencies
-        run: make deps-refresh && make deps
+        run: go mod download
 
       - name: Build binary
         run: make ci-build
@@ -166,13 +235,19 @@ jobs:
   build-macos:
     name: Build macOS (${{ matrix.arch }})
     runs-on: macos-latest
-    needs: prepare
+    needs: [update-deps, prepare]
     strategy:
       matrix:
         arch: [amd64, arm64]
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref }}
+          fetch-depth: 0
+
+      - name: Pull latest changes
+        run: git pull --rebase origin ${{ github.ref_name }} || true
 
       - name: Set up Go
         uses: actions/setup-go@v5
@@ -181,7 +256,7 @@ jobs:
           cache: true
 
       - name: Download dependencies
-        run: make deps-refresh && make deps
+        run: go mod download
 
       - name: Build binary
         run: make ci-build
