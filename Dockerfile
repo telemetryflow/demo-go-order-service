@@ -9,15 +9,12 @@ RUN apk add --no-cache git ca-certificates tzdata
 # Bypass Go proxy for TelemetryFlow private modules
 ENV GOPRIVATE=github.com/telemetryflow/*
 
-# Copy go mod files
-COPY go.mod go.sum ./
-RUN go mod download
-
 # Copy source code
 COPY . .
 
 # Ensure all dependencies are resolved
 RUN grep -v "github.com/telemetryflow/" go.sum > go.sum.tmp && mv go.sum.tmp go.sum
+RUN go mod download
 RUN go mod tidy
 
 # Build the application
