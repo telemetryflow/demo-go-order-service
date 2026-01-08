@@ -1,57 +1,335 @@
 #!/bin/bash
-
-# Pre-push hook for TelemetryFlow Go projects
-# Runs tests before pushing to remote
+# ==============================================================================
+# Order Service - Pre-push Hook
+# ==============================================================================
+# Runs comprehensive checks before allowing a push
+# - Full lint check
+# - Go vet
+# - Full test suite with coverage
+# - Build verification
+# - Branch protection rules
+# ==============================================================================
 
 set -e
-
-echo "Running pre-push checks..."
 
 # Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+CYAN='\033[0;36m'
 NC='\033[0m' # No Color
 
+# Helper functions
+info() { echo -e "${BLUE}ℹ️  $1${NC}"; }
+success() { echo -e "${GREEN}✅ $1${NC}"; }
+warning() { echo -e "${YELLOW}⚠️  $1${NC}"; }
+error() { echo -e "${RED}❌ $1${NC}"; }
+
+# Get remote and branch info
 REMOTE="$1"
 URL="$2"
 
-# Read stdin for push info
-while read local_ref local_sha remote_ref remote_sha; do
-    # Skip delete operations
-    if [ "$local_sha" = "0000000000000000000000000000000000000000" ]; then
+# Read stdin for refs being pushed
+while read LOCAL_REF LOCAL_SHA REMOTE_REF REMOTE_SHA; do
+    if [ "$LOCAL_SHA" = "0000000000000000000000000000000000000000" ]; then
+        # Deleting a branch, skip checks
         continue
     fi
 
-    echo -e "${YELLOW}Pushing to: ${REMOTE} (${URL})${NC}"
-    echo -e "${YELLOW}Branch: ${local_ref}${NC}"
+    BRANCH=$(echo "$LOCAL_REF" | sed 's|refs/heads/||')
+
+    echo ""
+    echo -e "${BLUE}╔══════════════════════════════════════════════════════════════╗${NC}"
+    echo -e "${BLUE}║             Order Service - Pre-push Checks                  ║${NC}"
+    echo -e "${BLUE}╚══════════════════════════════════════════════════════════════╝${NC}"
+    echo ""
+    echo -e "${CYAN}Remote:${NC} $REMOTE ($URL)"
+    echo -e "${CYAN}Branch:${NC} $BRANCH"
+    echo ""
+
+    # ==========================================================================
+    # Check 1: Protected branch warnings
+    # ==========================================================================
+    PROTECTED_BRANCHES="main master develop"
+
+    for protected in $PROTECTED_BRANCHES; do
+        if [ "$BRANCH" = "$protected" ]; then
+            warning "You are pushing to protected branch: $BRANCH"
+            echo ""
+
+            # Check if pushing directly (not via PR)
+            if [ "$REMOTE_SHA" != "0000000000000000000000000000000000000000" ]; then
+                # Get the commits being pushed
+                COMMITS=$(git log --oneline "$REMOTE_SHA..$LOCAL_SHA" 2>/dev/null || echo "")
+                COMMIT_COUNT=$(echo "$COMMITS" | grep -c "." || echo "0")
+
+                if [ "$COMMIT_COUNT" -gt 0 ]; then
+                    info "Commits being pushed:"
+                    echo "$COMMITS" | while read -r commit; do
+                        echo "  - $commit"
+                    done
+                    echo ""
+                fi
+            fi
+
+            read -p "Are you sure you want to push to $BRANCH? (y/N) " -n 1 -r </dev/tty
+            echo ""
+            if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+                error "Push to $BRANCH cancelled"
+                exit 1
+            fi
+            break
+        fi
+    done
+
+    # ==========================================================================
+    # Check 2: Go fmt check
+    # ==========================================================================
+    info "Running go fmt check..."
+
+    UNFORMATTED=$(gofmt -l . 2>/dev/null | grep -v vendor/ || true)
+
+    if [ -n "$UNFORMATTED" ]; then
+        error "The following files are not formatted:"
+        echo "$UNFORMATTED" | while read -r file; do
+            echo "  - $file"
+        done
+        exit 1
+    fi
+
+    success "Go fmt passed"
+    echo ""
+
+    # ==========================================================================
+    # Check 3: Go vet
+    # ==========================================================================
+    info "Running go vet..."
+
+    if go vet ./... 2>/dev/null; then
+        success "Go vet passed"
+    else
+        error "Go vet failed. Please fix all issues before pushing."
+        exit 1
+    fi
+    echo ""
+
+    # ==========================================================================
+    # Check 4: golangci-lint (full)
+    # ==========================================================================
+    if command -v golangci-lint &> /dev/null; then
+        info "Running full golangci-lint check..."
+
+        if golangci-lint run 2>/dev/null; then
+            success "golangci-lint passed"
+        else
+            error "golangci-lint failed. Please fix all linting issues before pushing."
+            exit 1
+        fi
+        echo ""
+    else
+        warning "golangci-lint not installed, skipping"
+        echo ""
+    fi
+
+    # ==========================================================================
+    # Check 5: Full test suite with 80% coverage (including tests/ directory)
+    # ==========================================================================
+    info "Running full test suite with coverage..."
+
+    # Coverage threshold (set to 80% - adjust based on project maturity)
+    # Increase this threshold as test coverage improves
+    COVERAGE_THRESHOLD=80
+
+    # Run all tests including tests/ directory
+    TEST_FAILED=false
+    COVERAGE_FILE=$(mktemp)
+
+    # Determine coverage packages (exclude tests/ and vendor/ directories)
+    # This ensures we measure coverage of the actual source code, not test helpers
+    COVERPKG=""
+    if [ -d "internal" ] || [ -d "pkg" ] || [ -d "cmd" ]; then
+        # Build coverpkg list from actual source directories
+        COVERPKG_DIRS=""
+        [ -d "internal" ] && COVERPKG_DIRS="./internal/..."
+        [ -d "pkg" ] && COVERPKG_DIRS="$COVERPKG_DIRS,./pkg/..."
+        [ -d "cmd" ] && COVERPKG_DIRS="$COVERPKG_DIRS,./cmd/..."
+        COVERPKG_DIRS=$(echo "$COVERPKG_DIRS" | sed 's/^,//')
+        if [ -n "$COVERPKG_DIRS" ]; then
+            COVERPKG="-coverpkg=$COVERPKG_DIRS"
+        fi
+    fi
+
+    # Run tests from tests/ directory if it exists
+    if [ -d "tests" ]; then
+        # Run unit tests if directory exists and has Go files
+        if [ -d "tests/unit" ]; then
+            if find tests/unit -name "*.go" -type f 2>/dev/null | grep -q .; then
+                info "Running unit tests from tests/unit/..."
+                if ! go test -race $COVERPKG -coverprofile="$COVERAGE_FILE" -covermode=atomic ./tests/unit/... 2>/dev/null; then
+                    TEST_FAILED=true
+                fi
+            else
+                info "No Go files in tests/unit/, skipping"
+            fi
+        fi
+
+        # Run integration tests (optional, can be skipped with env var)
+        if [ -d "tests/integration" ] && [ "$SKIP_INTEGRATION_TESTS" != "true" ]; then
+            if find tests/integration -name "*.go" -type f 2>/dev/null | grep -q .; then
+                info "Running integration tests from tests/integration/..."
+                if ! go test -race ./tests/integration/... 2>/dev/null; then
+                    warning "Integration tests failed (set SKIP_INTEGRATION_TESTS=true to skip)"
+                    TEST_FAILED=true
+                fi
+            else
+                info "No Go files in tests/integration/, skipping"
+            fi
+        fi
+
+        # Run e2e tests (optional, can be skipped with env var)
+        if [ -d "tests/e2e" ] && [ "$SKIP_E2E_TESTS" != "true" ]; then
+            if find tests/e2e -name "*.go" -type f 2>/dev/null | grep -q .; then
+                info "Running e2e tests from tests/e2e/..."
+                if ! go test -race ./tests/e2e/... 2>/dev/null; then
+                    warning "E2E tests failed (set SKIP_E2E_TESTS=true to skip)"
+                    TEST_FAILED=true
+                fi
+            else
+                info "No Go files in tests/e2e/, skipping"
+            fi
+        fi
+    fi
+
+    # Run all tests with coverage (including inline _test.go files)
+    # Use -coverpkg to measure coverage of source packages from all tests
+    info "Running all tests with coverage..."
+    if [ -n "$COVERPKG" ]; then
+        if ! go test -race $COVERPKG -coverprofile="$COVERAGE_FILE" -covermode=atomic ./... 2>/dev/null; then
+            TEST_FAILED=true
+        fi
+    else
+        if ! go test -race -coverprofile="$COVERAGE_FILE" -covermode=atomic ./... 2>/dev/null; then
+            TEST_FAILED=true
+        fi
+    fi
+
+    if [ "$TEST_FAILED" = true ]; then
+        rm -f "$COVERAGE_FILE"
+        error "Tests failed. Please fix all failing tests before pushing."
+        exit 1
+    fi
+
+    # Check coverage threshold
+    if [ -f "$COVERAGE_FILE" ] && [ -s "$COVERAGE_FILE" ]; then
+        COVERAGE=$(go tool cover -func="$COVERAGE_FILE" 2>/dev/null | grep total | awk '{print $3}' | sed 's/%//')
+        if [ -n "$COVERAGE" ]; then
+            echo -e "  ${CYAN}Coverage:${NC} ${COVERAGE}%"
+
+            # Compare coverage (using bc for float comparison, or awk as fallback)
+            if command -v bc &> /dev/null; then
+                COVERAGE_OK=$(echo "$COVERAGE >= $COVERAGE_THRESHOLD" | bc -l)
+            else
+                COVERAGE_OK=$(awk "BEGIN {print ($COVERAGE >= $COVERAGE_THRESHOLD) ? 1 : 0}")
+            fi
+
+            if [ "$COVERAGE_OK" != "1" ]; then
+                rm -f "$COVERAGE_FILE"
+                error "Coverage ${COVERAGE}% is below threshold ${COVERAGE_THRESHOLD}%"
+                exit 1
+            fi
+            success "Coverage meets threshold (${COVERAGE}% >= ${COVERAGE_THRESHOLD}%)"
+        fi
+    fi
+    rm -f "$COVERAGE_FILE"
+
+    success "All tests passed"
+    echo ""
+
+    # ==========================================================================
+    # Check 6: Build verification
+    # ==========================================================================
+    info "Verifying build..."
+
+    if go build -o /dev/null ./... 2>/dev/null; then
+        success "Build successful"
+    else
+        error "Build failed. Please fix build errors before pushing."
+        exit 1
+    fi
+    echo ""
+
+    # ==========================================================================
+    # Check 7: Check for WIP commits
+    # ==========================================================================
+    if [ "$REMOTE_SHA" != "0000000000000000000000000000000000000000" ]; then
+        WIP_COMMITS=$(git log --oneline "$REMOTE_SHA..$LOCAL_SHA" | grep -iE "(WIP|FIXME|TODO|XXX|HACK):" || true)
+
+        if [ -n "$WIP_COMMITS" ]; then
+            warning "Found work-in-progress commits:"
+            echo "$WIP_COMMITS" | while read -r commit; do
+                echo "  - $commit"
+            done
+            echo ""
+            read -p "Continue pushing with WIP commits? (y/N) " -n 1 -r </dev/tty
+            echo ""
+            if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+                error "Push cancelled due to WIP commits"
+                exit 1
+            fi
+        fi
+    fi
+
+    # ==========================================================================
+    # Check 8: Large file detection
+    # ==========================================================================
+    info "Checking for large files..."
+
+    MAX_FILE_SIZE=5242880  # 5MB in bytes
+    LARGE_FILES=""
+
+    if [ "$REMOTE_SHA" = "0000000000000000000000000000000000000000" ]; then
+        # New branch, check all files
+        FILES=$(git ls-tree -r --name-only "$LOCAL_SHA")
+    else
+        # Existing branch, check changed files
+        FILES=$(git diff --name-only "$REMOTE_SHA..$LOCAL_SHA")
+    fi
+
+    for file in $FILES; do
+        if [ -f "$file" ]; then
+            FILE_SIZE=$(wc -c < "$file" 2>/dev/null || echo "0")
+            if [ "$FILE_SIZE" -gt "$MAX_FILE_SIZE" ]; then
+                LARGE_FILES="$LARGE_FILES\n  - $file ($(numfmt --to=iec-i --suffix=B $FILE_SIZE 2>/dev/null || echo "${FILE_SIZE} bytes"))"
+            fi
+        fi
+    done
+
+    if [ -n "$LARGE_FILES" ]; then
+        warning "Large files detected (>5MB):$LARGE_FILES"
+        echo ""
+        read -p "Continue pushing with large files? (y/N) " -n 1 -r </dev/tty
+        echo ""
+        if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+            error "Push cancelled due to large files"
+            exit 1
+        fi
+    else
+        success "No large files detected"
+    fi
+    echo ""
+
+    # ==========================================================================
+    # Summary
+    # ==========================================================================
+    echo ""
+    echo -e "${GREEN}╔══════════════════════════════════════════════════════════════╗${NC}"
+    echo -e "${GREEN}║               All pre-push checks passed! 🚀                 ║${NC}"
+    echo -e "${GREEN}╚══════════════════════════════════════════════════════════════╝${NC}"
+    echo ""
+    echo -e "${CYAN}Pushing to:${NC} $REMOTE/$BRANCH"
+    echo ""
+
 done
 
-FAILED=0
-
-# 1. Run tests
-echo -e "\n${YELLOW}[1/2] Running tests...${NC}"
-if go test ./... -v -race -timeout 5m 2>&1; then
-    echo -e "${GREEN}All tests passed${NC}"
-else
-    echo -e "${RED}Tests failed${NC}"
-    FAILED=1
-fi
-
-# 2. Run build to ensure project compiles
-echo -e "\n${YELLOW}[2/2] Running build check...${NC}"
-if go build ./... 2>&1; then
-    echo -e "${GREEN}Build successful${NC}"
-else
-    echo -e "${RED}Build failed${NC}"
-    FAILED=1
-fi
-
-if [ $FAILED -ne 0 ]; then
-    echo -e "\n${RED}Pre-push checks failed. Push aborted.${NC}"
-    echo -e "${YELLOW}Fix the issues above and try again.${NC}"
-    exit 1
-fi
-
-echo -e "\n${GREEN}All pre-push checks passed! Pushing...${NC}"
 exit 0

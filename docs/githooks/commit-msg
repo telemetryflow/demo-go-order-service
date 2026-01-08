@@ -1,86 +1,170 @@
 #!/bin/bash
-
-# Commit-msg hook for TelemetryFlow projects
-# Enforces Conventional Commits format
+# ==============================================================================
+# Order Service - Commit Message Hook
+# ==============================================================================
+# Validates commit messages follow Conventional Commits format
 # https://www.conventionalcommits.org/
+#
+# Format: <type>(<scope>): <subject>
+#
+# Types: feat, fix, docs, style, refactor, perf, test, build, ci, chore, revert
+# Scope: optional, indicates the module/area affected
+# Subject: short description of the change
+# ==============================================================================
 
 set -e
-
-COMMIT_MSG_FILE=$1
-COMMIT_MSG=$(cat "$COMMIT_MSG_FILE")
 
 # Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+CYAN='\033[0;36m'
 NC='\033[0m' # No Color
 
-# Skip merge commits
-if echo "$COMMIT_MSG" | grep -qE "^Merge"; then
+# Helper functions
+info() { echo -e "${BLUE}ℹ️  $1${NC}"; }
+success() { echo -e "${GREEN}✅ $1${NC}"; }
+warning() { echo -e "${YELLOW}⚠️  $1${NC}"; }
+error() { echo -e "${RED}❌ $1${NC}"; }
+
+# Get the commit message file
+COMMIT_MSG_FILE=$1
+COMMIT_MSG=$(cat "$COMMIT_MSG_FILE")
+
+# Skip validation for merge commits
+if echo "$COMMIT_MSG" | grep -qE "^Merge "; then
     exit 0
 fi
 
-# Conventional commit pattern
-# Types: feat, fix, docs, style, refactor, perf, test, build, ci, chore, revert
-# Optional scope in parentheses
-# Optional breaking change indicator (!)
-# Colon and space, then description
-PATTERN="^(feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert)(\(.+\))?(!)?: .{1,}"
+# Skip validation for revert commits
+if echo "$COMMIT_MSG" | grep -qE "^Revert "; then
+    exit 0
+fi
 
-# Check if commit message follows conventional commits format
-if ! echo "$COMMIT_MSG" | head -1 | grep -qE "$PATTERN"; then
-    echo -e "${RED}ERROR: Commit message does not follow Conventional Commits format.${NC}"
+# Skip validation for fixup/squash commits
+if echo "$COMMIT_MSG" | grep -qE "^(fixup|squash)! "; then
+    exit 0
+fi
+
+echo ""
+echo -e "${BLUE}╔══════════════════════════════════════════════════════════════╗${NC}"
+echo -e "${BLUE}║           Order Service - Commit Message Check               ║${NC}"
+echo -e "${BLUE}╚══════════════════════════════════════════════════════════════╝${NC}"
+echo ""
+
+# Get only the first line (subject)
+FIRST_LINE=$(echo "$COMMIT_MSG" | head -n1)
+
+# Define valid types
+VALID_TYPES="feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert"
+
+# Define valid scopes for Order Service
+VALID_SCOPES="orders|cart|checkout|payment|inventory|shipping|pricing|discount|tax|invoice|refund|customer|product|catalog|notification|email|sms|webhook|api|db|config|docker|ci|deps|telemetry|auth|validation"
+
+# Regex pattern for conventional commits
+# Format: type(scope): subject  OR  type: subject
+PATTERN="^($VALID_TYPES)(\(($VALID_SCOPES)\))?: .{1,100}$"
+
+# Check if message matches the pattern
+if ! echo "$FIRST_LINE" | grep -qE "$PATTERN"; then
+    error "Invalid commit message format!"
     echo ""
-    echo -e "${YELLOW}Your commit message:${NC}"
-    echo "$COMMIT_MSG" | head -1
+    echo -e "${YELLOW}Your message:${NC}"
+    echo "  $FIRST_LINE"
     echo ""
-    echo -e "${YELLOW}Expected format:${NC}"
-    echo "  <type>[optional scope][!]: <description>"
+    echo -e "${CYAN}Expected format:${NC}"
+    echo "  <type>(<scope>): <subject>"
+    echo "  or"
+    echo "  <type>: <subject>"
     echo ""
-    echo -e "${YELLOW}Allowed types:${NC}"
-    echo "  feat:     A new feature"
-    echo "  fix:      A bug fix"
-    echo "  docs:     Documentation only changes"
-    echo "  style:    Code style changes (formatting, semicolons, etc)"
-    echo "  refactor: Code change that neither fixes a bug nor adds a feature"
-    echo "  perf:     Performance improvement"
-    echo "  test:     Adding or updating tests"
-    echo "  build:    Build system or external dependency changes"
-    echo "  ci:       CI configuration changes"
-    echo "  chore:    Other changes that don't modify src or test files"
-    echo "  revert:   Reverts a previous commit"
+    echo -e "${CYAN}Valid types:${NC}"
+    echo "  feat     - A new feature"
+    echo "  fix      - A bug fix"
+    echo "  docs     - Documentation only changes"
+    echo "  style    - Code style changes (formatting, semicolons, etc)"
+    echo "  refactor - Code change that neither fixes a bug nor adds a feature"
+    echo "  perf     - Performance improvements"
+    echo "  test     - Adding or correcting tests"
+    echo "  build    - Build system or external dependencies"
+    echo "  ci       - CI configuration files and scripts"
+    echo "  chore    - Other changes that don't modify src or test files"
+    echo "  revert   - Reverts a previous commit"
     echo ""
-    echo -e "${YELLOW}Examples:${NC}"
-    echo "  feat: add user authentication"
-    echo "  fix(api): resolve null pointer in handler"
-    echo "  docs: update README with installation steps"
-    echo "  feat(auth)!: change token format (breaking change)"
+    echo -e "${CYAN}Valid scopes (optional):${NC}"
+    echo "  orders, cart, checkout, payment, inventory, shipping, pricing,"
+    echo "  discount, tax, invoice, refund, customer, product, catalog,"
+    echo "  notification, email, sms, webhook, api, db, config, docker,"
+    echo "  ci, deps, telemetry, auth, validation"
+    echo ""
+    echo -e "${CYAN}Examples:${NC}"
+    echo "  feat(orders): add order status tracking endpoint"
+    echo "  fix(payment): resolve payment gateway timeout issue"
+    echo "  docs: update API documentation for checkout flow"
+    echo "  refactor(cart): optimize cart calculation logic"
+    echo "  test(checkout): add e2e tests for checkout process"
     echo ""
     exit 1
 fi
 
-# Check minimum description length (at least 10 characters after the type)
-DESCRIPTION=$(echo "$COMMIT_MSG" | head -1 | sed -E 's/^(feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert)(\(.+\))?(!)?: //')
-if [ ${#DESCRIPTION} -lt 10 ]; then
-    echo -e "${RED}ERROR: Commit description is too short (minimum 10 characters).${NC}"
-    echo -e "${YELLOW}Current description:${NC} $DESCRIPTION"
+# Check subject length
+SUBJECT_LENGTH=${#FIRST_LINE}
+if [ "$SUBJECT_LENGTH" -gt 100 ]; then
+    error "Commit message subject is too long!"
+    echo ""
+    echo "  Current length: $SUBJECT_LENGTH characters"
+    echo "  Maximum allowed: 100 characters"
+    echo ""
+    echo "Please shorten your commit message."
     exit 1
 fi
 
-# Check that description doesn't start with capital letter (optional but recommended)
-if echo "$DESCRIPTION" | grep -qE "^[A-Z]"; then
-    echo -e "${YELLOW}WARNING: Description should start with lowercase letter.${NC}"
-    echo -e "${YELLOW}Current:${NC} $DESCRIPTION"
-    # This is just a warning, not a failure
+# Check for period at the end
+if echo "$FIRST_LINE" | grep -qE "\.$"; then
+    warning "Commit message should not end with a period"
+    echo "  Consider removing the trailing period"
 fi
 
-# Check commit message line length (first line should be <= 72 characters)
-FIRST_LINE_LENGTH=$(echo "$COMMIT_MSG" | head -1 | wc -c | tr -d ' ')
-if [ "$FIRST_LINE_LENGTH" -gt 72 ]; then
-    echo -e "${YELLOW}WARNING: First line exceeds 72 characters (${FIRST_LINE_LENGTH} chars).${NC}"
-    echo -e "${YELLOW}Consider shortening the commit message.${NC}"
-    # This is just a warning, not a failure
+# Check for uppercase first letter after colon
+SUBJECT=$(echo "$FIRST_LINE" | sed 's/^[^:]*: //')
+FIRST_CHAR=$(echo "$SUBJECT" | cut -c1)
+if echo "$FIRST_CHAR" | grep -qE "[A-Z]"; then
+    warning "Subject should start with lowercase letter"
+    echo "  Current: $SUBJECT"
+    echo "  Consider: $(echo "$SUBJECT" | sed 's/^./\L&/')"
 fi
 
-echo -e "${GREEN}Commit message follows Conventional Commits format.${NC}"
+# Extract type for emoji suggestion
+TYPE=$(echo "$FIRST_LINE" | sed 's/^\([^(:]*\).*/\1/')
+
+# Success message with emoji based on type
+case "$TYPE" in
+    feat)     EMOJI="✨" ;;
+    fix)      EMOJI="🐛" ;;
+    docs)     EMOJI="📚" ;;
+    style)    EMOJI="💄" ;;
+    refactor) EMOJI="♻️" ;;
+    perf)     EMOJI="⚡" ;;
+    test)     EMOJI="🧪" ;;
+    build)    EMOJI="🔨" ;;
+    ci)       EMOJI="👷" ;;
+    chore)    EMOJI="🔧" ;;
+    revert)   EMOJI="⏪" ;;
+    *)        EMOJI="📝" ;;
+esac
+
+echo ""
+success "Commit message is valid! $EMOJI"
+echo ""
+echo -e "  ${CYAN}Type:${NC} $TYPE"
+
+# Extract and display scope if present
+if echo "$FIRST_LINE" | grep -qE "^[^(]+\([^)]+\)"; then
+    SCOPE=$(echo "$FIRST_LINE" | sed 's/^[^(]*(\([^)]*\)).*/\1/')
+    echo -e "  ${CYAN}Scope:${NC} $SCOPE"
+fi
+
+echo -e "  ${CYAN}Subject:${NC} $SUBJECT"
+echo ""
+
 exit 0
