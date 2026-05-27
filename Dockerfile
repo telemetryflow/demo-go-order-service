@@ -21,7 +21,7 @@ RUN go mod tidy
 RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o /app/Order-Service ./cmd/api
 
 # Runtime stage
-FROM alpine:3.21
+FROM alpine:3.23
 
 WORKDIR /app
 
