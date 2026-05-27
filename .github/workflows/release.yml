@@ -3,7 +3,7 @@
 # =============================================================================
 #
 # Order Service - TelemetryFlow Microservices Platform
-# Copyright (c) 2024-2026 DevOpsCorner Indonesia. All rights reserved.
+# Copyright (c) 2024-2026 Telemetri Data Indonesia. All rights reserved.
 #
 # This workflow builds and releases Order Service for multiple platforms:
 # - Linux: RPM (RHEL/CentOS/Fedora), DEB (Debian/Ubuntu)
@@ -35,10 +35,10 @@ on:
         default: false
 
 env:
-  GO_VERSION: '1.24'
+  GO_VERSION: '1.26'
   BINARY_NAME: Order-Service
   PRODUCT_NAME: Order Service
-  VENDOR: DevOpsCorner Indonesia
+  VENDOR: Telemetri Data Indonesia
   MAINTAINER: support@telemetryflow.id
   DESCRIPTION: Order management microservice for the TelemetryFlow platform
   LICENSE: Apache-2.0
@@ -59,13 +59,13 @@ jobs:
       deps_updated: ${{ steps.check-changes.outputs.changed }}
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           fetch-depth: 0
 
       - name: Set up Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
           go-version: ${{ env.GO_VERSION }}
           cache: true
@@ -115,7 +115,7 @@ jobs:
       build_time: ${{ steps.version.outputs.build_time }}
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           ref: ${{ github.ref }}
           fetch-depth: 0
@@ -148,7 +148,7 @@ jobs:
         arch: [amd64, arm64]
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           ref: ${{ github.ref }}
           fetch-depth: 0
@@ -157,7 +157,7 @@ jobs:
         run: git pull --rebase origin ${{ github.ref_name }} || true
 
       - name: Set up Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
           go-version: ${{ env.GO_VERSION }}
           cache: true
@@ -178,7 +178,7 @@ jobs:
           cp build/${{ env.BINARY_NAME }}-linux-${{ matrix.arch }} dist/
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: binary-linux-${{ matrix.arch }}
           path: dist/${{ env.BINARY_NAME }}-linux-${{ matrix.arch }}
@@ -193,7 +193,7 @@ jobs:
     needs: [update-deps, prepare]
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           ref: ${{ github.ref }}
           fetch-depth: 0
@@ -202,7 +202,7 @@ jobs:
         run: git pull --rebase origin ${{ github.ref_name }} || true
 
       - name: Set up Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
           go-version: ${{ env.GO_VERSION }}
           cache: true
@@ -223,7 +223,7 @@ jobs:
           cp build/${{ env.BINARY_NAME }}-windows-amd64.exe dist/
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: binary-windows-amd64
           path: dist/${{ env.BINARY_NAME }}-windows-amd64.exe
@@ -241,7 +241,7 @@ jobs:
         arch: [amd64, arm64]
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           ref: ${{ github.ref }}
           fetch-depth: 0
@@ -250,7 +250,7 @@ jobs:
         run: git pull --rebase origin ${{ github.ref_name }} || true
 
       - name: Set up Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
           go-version: ${{ env.GO_VERSION }}
           cache: true
@@ -271,7 +271,7 @@ jobs:
           cp build/${{ env.BINARY_NAME }}-darwin-${{ matrix.arch }} dist/
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: binary-darwin-${{ matrix.arch }}
           path: dist/${{ env.BINARY_NAME }}-darwin-${{ matrix.arch }}
@@ -297,10 +297,10 @@ jobs:
             arch: arm64
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Download binary
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: binary-${{ matrix.os }}-${{ matrix.arch }}
           path: dist
@@ -322,7 +322,7 @@ jobs:
           tar -czvf "${TAR_DIR}.tar.gz" "${TAR_DIR}"
 
       - name: Upload tarball artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: tarball-${{ matrix.os }}-${{ matrix.arch }}
           path: ${{ env.BINARY_NAME }}-*.tar.gz
@@ -350,10 +350,10 @@ jobs:
           sudo apt-get install -y rpm
 
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Download binary
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: binary-linux-${{ matrix.arch }}
           path: dist
@@ -483,7 +483,7 @@ jobs:
                    -bb rpmbuild/SPECS/${{ env.BINARY_NAME }}.spec
 
       - name: Upload RPM artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: rpm-${{ matrix.arch }}
           path: rpmbuild/RPMS/**/*.rpm
@@ -501,10 +501,10 @@ jobs:
         arch: [amd64, arm64]
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Download binary
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: binary-linux-${{ matrix.arch }}
           path: dist
@@ -643,7 +643,7 @@ jobs:
           mv ${PKG_DIR}.deb packages/
 
       - name: Upload DEB artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: deb-${{ matrix.arch }}
           path: packages/*.deb
@@ -658,10 +658,10 @@ jobs:
     needs: [prepare, build-windows]
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Download binary
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: binary-windows-amd64
           path: dist
@@ -792,14 +792,14 @@ jobs:
           Documentation: https://docs.telemetryflow.id
           Support: support@telemetryflow.id
 
-          Copyright (c) 2024-2026 DevOpsCorner Indonesia
+          Copyright (c) 2024-2026 Telemetri Data Indonesia
           EOF
 
           # Create ZIP
           zip -r ${{ env.BINARY_NAME }}-${VERSION}-windows-amd64.zip ${PKG_DIR}
 
       - name: Upload Windows artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: windows-amd64
           path: ${{ env.BINARY_NAME }}-*.zip
@@ -824,10 +824,10 @@ jobs:
             display_name: Apple Silicon
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Download binary
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: binary-darwin-${{ matrix.arch }}
           path: dist
@@ -971,7 +971,7 @@ jobs:
           Documentation: https://docs.telemetryflow.id
           Support: support@telemetryflow.id
 
-          Copyright (c) 2024-2026 DevOpsCorner Indonesia
+          Copyright (c) 2024-2026 Telemetri Data Indonesia
           EOF
 
       - name: Create DMG
@@ -1000,7 +1000,7 @@ jobs:
                          "${DMG_NAME}"
 
       - name: Upload DMG artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: dmg-${{ matrix.arch }}
           path: ${{ env.BINARY_NAME }}-*.dmg
@@ -1021,40 +1021,40 @@ jobs:
       - package-tarball
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
       - name: Download RPM packages
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           pattern: rpm-*
           path: artifacts/rpm
           merge-multiple: true
 
       - name: Download DEB packages
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           pattern: deb-*
           path: artifacts/deb
           merge-multiple: true
 
       - name: Download Windows packages
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           pattern: windows-*
           path: artifacts/windows
           merge-multiple: true
 
       - name: Download macOS DMG packages
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           pattern: dmg-*
           path: artifacts/dmg
           merge-multiple: true
 
       - name: Download tarballs
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           pattern: tarball-*
           path: artifacts/tarball
@@ -1122,7 +1122,7 @@ jobs:
           fi
 
       - name: Create Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           name: "${{ env.PRODUCT_NAME }} v${{ needs.prepare.outputs.version }}"
           tag_name: "v${{ needs.prepare.outputs.version }}"
@@ -1235,7 +1235,7 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3

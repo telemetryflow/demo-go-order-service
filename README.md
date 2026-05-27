@@ -7,9 +7,9 @@
     <img src="https://github.com/telemetryflow/.github/raw/main/docs/assets/tfo-logo-sdk-light.svg" alt="TelemetryFlow Logo" width="80%">
   </picture>
 
-[![Version](https://img.shields.io/badge/Version-1.1.2-orange.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/Version-1.2.0-orange.svg)](CHANGELOG.md)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
-[![Go Version](https://img.shields.io/badge/Go-1.24+-00ADD8?logo=go)](https://golang.org/)
+[![Go Version](https://img.shields.io/badge/Go-1.26+-00ADD8?logo=go)](https://golang.org/)
 [![OpenTelemetry](https://img.shields.io/badge/OTLP-100%25%20Compliant-success?logo=opentelemetry)](https://opentelemetry.io/)
 [![Docker](https://img.shields.io/badge/Docker-Ready-2496ED?style=flat&logo=docker)](https://hub.docker.com/r/telemetryflow/telemetryflow-sdk)
 
@@ -65,7 +65,7 @@ Order-Service/
 
 ### Prerequisites
 
-- Go 1.22+
+- Go 1.26+
 - PostgreSQL 16+
 - Docker & Docker Compose (recommended)
 
@@ -118,14 +118,37 @@ docker logs -f order_service_postgres
 docker logs -f order_service_otel
 ```
 
+### Profiles
+
+| Profile | Services |
+|---------|----------|
+| `db` | PostgreSQL |
+| `app` | API (Order Service) |
+| `monitoring` | TFO-Collector, Prometheus |
+| `platform` | TFO-Backend, TFO-Viz, PostgreSQL, ClickHouse, Redis, NATS |
+| `all` | All services |
+
+```bash
+# Start platform services for end-to-end observability
+docker compose --profile platform up -d
+
+# Start development stack
+docker compose --profile db --profile app --profile monitoring up -d
+
+# Start everything
+docker compose --profile all up -d
+```
+
 ### Services
 
 | Service | Container | Port | Description |
 |---------|-----------|------|-------------|
-| PostgreSQL | `order_service_postgres` | 5432 | Database |
-| API | `order_service_api` | 8080 | RESTful API |
-| OTEL Collector | `order_service_otel` | 4317, 4318, 8889, 13133, 55679, 1777 | OpenTelemetry Collector |
-| Jaeger | `order_service_jaeger` | 16686 | Distributed Tracing UI |
+| PostgreSQL | `TFO-SDK-PostgreSQL` | 5432 | Order database |
+| API | `TFO-SDK-Order-Service` | 8080 | RESTful API |
+| TFO-Collector | `TFO-SDK-OTEL` | 4317, 4318, 8889, 13133, 55679, 1777 | TelemetryFlow Collector (v1.2.1) |
+| Prometheus | `TFO-SDK-Prometheus` | 9090 | Metrics collection |
+| TFO-Backend | `TFO-Platform-Backend` | 8081 | TelemetryFlow Platform API (platform profile) |
+| TFO-Viz | `TFO-Platform-Viz` | 3000 | TelemetryFlow Visualization UI (platform profile) |
 
 ### OTEL Collector Ports
 
@@ -274,7 +297,7 @@ Configuration is loaded from environment variables and `.env` file.
 | `TELEMETRYFLOW_API_KEY_SECRET` | TelemetryFlow API Key Secret | - |
 | `TELEMETRYFLOW_ENDPOINT` | OTLP endpoint | `localhost:4317` |
 | `TELEMETRYFLOW_SERVICE_NAME` | Service name | `Order-Service` |
-| `TELEMETRYFLOW_SERVICE_VERSION` | Service version | `1.1.1` |
+| `TELEMETRYFLOW_SERVICE_VERSION` | Service version | `1.2.0` |
 
 ### Docker Compose Configuration
 
@@ -328,14 +351,23 @@ The service is instrumented with OpenTelemetry for:
 - **Metrics**: Application and runtime metrics
 - **Logs**: Structured logging
 
-The OpenTelemetry Collector receives telemetry data and can export to:
-- Jaeger (tracing)
+The OpenTelemetry Collector receives telemetry data and exports to:
+- TelemetryFlow Platform (via `platform` profile - TFO-Backend + TFO-Viz)
 - Prometheus (metrics)
-- Any OTLP-compatible backend
 
 ### Prometheus Metrics
 
 Access metrics at: `http://localhost:8889/metrics`
+
+### TelemetryFlow Platform
+
+For full observability visualization, start the platform profile:
+
+```bash
+docker compose --profile platform up -d
+```
+
+This brings up TFO-Backend, TFO-Viz, and supporting infrastructure (PostgreSQL, ClickHouse, Redis, NATS) for end-to-end telemetry visualization.
 
 ## License
 

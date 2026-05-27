@@ -4,11 +4,16 @@
 # Copyright (c) 2024-2026 Order-Service. All rights reserved.
 
 # Build configuration
+PRODUCT_NAME := Order-Service
 BINARY_NAME := Order-Service
-VERSION ?= 1.1.2
+VERSION ?= 1.2.0
+TFO_COLLECTOR_VERSION := 1.2.1
+TFO_AGENT_VERSION := 1.2.0
+TFO_SDK_VERSION := 1.2.0
+OTEL_VERSION := 0.142.0
+OTEL_GO_SDK_VERSION := 1.43.0
 GIT_COMMIT := $(shell git rev-parse --short HEAD 2>/dev/null || echo "unknown")
 GIT_BRANCH := $(shell git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "unknown")
-PRODUCT_NAME := Order-Service
 BUILD_TIME := $(shell date -u '+%Y-%m-%dT%H:%M:%SZ')
 GO_VERSION := $(shell go version | cut -d ' ' -f 3)
 
@@ -41,7 +46,7 @@ YELLOW := \033[0;33m
 RED := \033[0;31m
 NC := \033[0m
 
-.PHONY: all build build-all run test clean help deps lint fmt migrate-up migrate-down docker-build
+.PHONY: all build build-all run test clean help deps lint lint-fix fmt fmt-check vet staticcheck check tidy verify version ci release-check docs migrate-up migrate-down migrate-create dev test-unit test-integration test-e2e test-all test-coverage test-short bench deps-update deps-verify deps-refresh test-unit-ci test-integration-ci test-e2e-ci security govulncheck coverage-merge coverage-report ci-lint ci-test ci-build docker-build docker-run docker-compose-up docker-push install uninstall
 
 all: build
 
@@ -97,6 +102,10 @@ help:
 	@echo ""
 	@echo "$(YELLOW)Configuration:$(NC)"
 	@echo "  VERSION=$(VERSION)"
+	@echo "  TFO_COLLECTOR_VERSION=$(TFO_COLLECTOR_VERSION)"
+	@echo "  TFO_SDK_VERSION=$(TFO_SDK_VERSION)"
+	@echo "  OTEL_VERSION=$(OTEL_VERSION)"
+	@echo "  OTEL_GO_SDK_VERSION=$(OTEL_GO_SDK_VERSION)"
 	@echo "  GIT_COMMIT=$(GIT_COMMIT)"
 	@echo "  GIT_BRANCH=$(GIT_BRANCH)"
 	@echo "  BUILD_TIME=$(BUILD_TIME)"
@@ -181,152 +190,6 @@ deps-update:
 	@$(GOGET) -u ./...
 	@$(GOMOD) tidy
 	@echo "$(GREEN)Dependencies updated$(NC)"
-
-deps-refresh:
-	@echo "$(GREEN)Refreshing dependencies...$(NC)"
-	@rm -rf vendor go.sum
-	@echo "$(YELLOW)Clearing module cache...$(NC)"
-	@go clean -modcache
-	@echo "$(GREEN)Re-downloading dependencies with fresh checksums...$(NC)"
-	@$(GOMOD) download
-	@$(GOMOD) tidy
-	@$(GOMOD) verify
-	@echo "$(GREEN)Dependencies refreshed$(NC)"
-
-tidy:
-	@echo "$(GREEN)Tidying go modules...$(NC)"
-	@$(GOMOD) tidy
-	@echo "$(GREEN)Go modules tidied$(NC)"
-
-## Code quality
-lint:
-	@echo "$(GREEN)Running linter...$(NC)"
-	@if command -v golangci-lint >/dev/null 2>&1; then \
-		golangci-lint run ./...; \
-	else \
-		echo "$(YELLOW)golangci-lint not installed, skipping...$(NC)"; \
-	fi
-
-lint-fix:
-	@echo "$(GREEN)Running linter with auto-fix...$(NC)"
-	@if command -v golangci-lint >/dev/null 2>&1; then \
-		golangci-lint run --fix ./...; \
-	else \
-		echo "$(YELLOW)golangci-lint not installed, skipping...$(NC)"; \
-	fi
-
-fmt:
-	@echo "$(GREEN)Formatting code...$(NC)"
-	@$(GOCMD) fmt ./...
-	@echo "$(GREEN)Code formatted$(NC)"
-
-vet:
-	@echo "$(GREEN)Running go vet...$(NC)"
-	@$(GOCMD) vet ./...
-	@echo "$(GREEN)Vet complete$(NC)"
-
-check: fmt vet lint test
-	@echo "$(GREEN)All checks passed$(NC)"
-
-## Database
-migrate-up:
-	@echo "$(GREEN)Running migrations...$(NC)"
-	@if command -v migrate > /dev/null; then \
-		migrate -path $(MIGRATION_DIR) -database "postgres://$(DB_USER):$(DB_PASSWORD)@$(DB_HOST):$(DB_PORT)/$(DB_NAME)?sslmode=disable" up; \
-	else \
-		echo "$(YELLOW)migrate not installed. Install with: go install -tags 'postgres' github.com/golang-migrate/migrate/v4/cmd/migrate@latest$(NC)"; \
-	fi
-
-migrate-down:
-	@echo "$(GREEN)Rolling back migrations...$(NC)"
-	migrate -path $(MIGRATION_DIR) -database "postgres://$(DB_USER):$(DB_PASSWORD)@$(DB_HOST):$(DB_PORT)/$(DB_NAME)?sslmode=disable" down 1
-
-migrate-create:
-	@echo "$(GREEN)Creating migration: $(NAME)...$(NC)"
-	migrate create -ext sql -dir $(MIGRATION_DIR) -seq $(NAME)
-
-clean:
-	@echo "$(GREEN)Cleaning...$(NC)"
-	rm -rf $(BUILD_DIR)
-	rm -f coverage.out coverage.html
-	$(GOCMD) clean
-
-## Docker
-docker-build:
-	@echo "$(GREEN)Building Docker image...$(NC)"
-	docker build -t Order-Service:$(VERSION) .
-
-docker-run:
-	@echo "$(GREEN)Running Docker container...$(NC)"
-	docker run -p 8080:8080 --env-file .env Order-Service:$(VERSION)
-
-docker-compose-up:
-	@echo "$(GREEN)Starting services...$(NC)"
-	docker compose --profile all up -d
-
-docker-compose-down:
-	@echo "$(GREEN)Stopping services...$(NC)"
-	docker compose --profile all down
-
-## Documentaion
-docs:
-	@echo "$(GREEN)Documentation available at:$(NC)"
-	@echo "  - OpenAPI: docs/api/openapi.yaml"
-	@echo "  - Swagger: docs/api/swagger.json"
-	@echo "  - ERD: docs/diagrams/ERD.md"
-	@echo "  - DFD: docs/diagrams/DFD.md"
-	@echo "  - Postman: docs/postman/collection.json"
-
-swagger:
-	@echo "$(GREEN)Opening Swagger UI...$(NC)"
-	@if command -v swagger > /dev/null; then \
-		swagger serve docs/api/swagger.json; \
-	else \
-		echo "$(YELLOW)swagger-cli not installed$(NC)"; \
-		echo "Open docs/api/swagger.json in https://editor.swagger.io"; \
-	fi
-
-## Version info
-version:
-	@echo "$(GREEN)$(PRODUCT_NAME)$(NC)"
-	@echo "  Version:      $(VERSION)"
-	@echo "  Git Commit:   $(GIT_COMMIT)"
-	@echo "  Git Branch:   $(GIT_BRANCH)"
-	@echo "  Build Time:   $(BUILD_TIME)"
-	@echo "  Go Version:   $(GO_VERSION)"
-
-# =============================================================================
-# CI-Specific Targets
-# =============================================================================
-# These targets are optimized for CI/CD pipelines with proper exit codes,
-# coverage output, and race detection.
-
-## CI: Check formatting (fails if code needs formatting)
-fmt-check:
-	@echo "$(GREEN)Checking code formatting...$(NC)"
-	@if [ -n "$$(gofmt -l .)" ]; then \
-		echo "$(RED)The following files need formatting:$(NC)"; \
-		gofmt -l .; \
-		exit 1; \
-	fi
-	@echo "$(GREEN)Code formatting OK$(NC)"
-
-## CI: Run staticcheck
-staticcheck:
-	@echo "$(GREEN)Running staticcheck...$(NC)"
-	@if command -v staticcheck >/dev/null 2>&1; then \
-		staticcheck ./...; \
-	else \
-		echo "$(YELLOW)Installing staticcheck...$(NC)"; \
-		go install honnef.co/go/tools/cmd/staticcheck@latest; \
-		staticcheck ./...; \
-	fi
-
-## CI: Verify dependencies
-verify:
-	@echo "$(GREEN)Verifying dependencies...$(NC)"
-	@$(GOMOD) verify
-	@echo "$(GREEN)Dependencies verified$(NC)"
 
 ## CI: Download and verify dependencies
 deps-verify: deps verify
@@ -424,6 +287,116 @@ ci-build:
 	if [ "$(GOOS)" = "windows" ]; then OUTPUT="$${OUTPUT}.exe"; fi; \
 	CGO_ENABLED=0 $(GOBUILD) -ldflags "$(LDFLAGS)" -o $${OUTPUT} ./cmd/api; \
 	echo "$(GREEN)Built: $${OUTPUT}$(NC)"
+
+## Code quality
+tidy:
+	@echo "$(GREEN)Tidying go modules...$(NC)"
+	@$(GOMOD) tidy
+	@echo "$(GREEN)Go modules tidied$(NC)"
+
+verify:
+	@echo "$(GREEN)Verifying dependencies...$(NC)"
+	@$(GOMOD) verify
+	@echo "$(GREEN)Dependencies verified$(NC)"
+
+fmt:
+	@echo "$(GREEN)Formatting code...$(NC)"
+	@$(GOCMD) fmt ./...
+	@echo "$(GREEN)Code formatted$(NC)"
+
+fmt-check:
+	@echo "$(GREEN)Checking code formatting...$(NC)"
+	@if [ -n "$$(gofmt -l .)" ]; then \
+		echo "$(RED)The following files need formatting:$(NC)"; \
+		gofmt -l .; \
+		exit 1; \
+	fi
+	@echo "$(GREEN)All files are properly formatted$(NC)"
+
+vet:
+	@echo "$(GREEN)Running go vet...$(NC)"
+	@$(GOCMD) vet ./...
+	@echo "$(GREEN)Vet complete$(NC)"
+
+staticcheck:
+	@echo "$(GREEN)Running staticcheck...$(NC)"
+	@if ! command -v staticcheck >/dev/null 2>&1; then \
+		echo "$(YELLOW)Installing staticcheck...$(NC)"; \
+		go install honnef.co/go/tools/cmd/staticcheck@latest; \
+	fi
+	@staticcheck ./...
+	@echo "$(GREEN)Staticcheck complete$(NC)"
+
+lint:
+	@echo "$(GREEN)Running linter...$(NC)"
+	@if command -v golangci-lint >/dev/null 2>&1; then \
+		golangci-lint run ./...; \
+	else \
+		echo "$(YELLOW)golangci-lint not installed. Install with: go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest$(NC)"; \
+	fi
+
+lint-fix:
+	@echo "$(GREEN)Running linter with auto-fix...$(NC)"
+	@if command -v golangci-lint >/dev/null 2>&1; then \
+		golangci-lint run --fix ./...; \
+	else \
+		echo "$(YELLOW)golangci-lint not installed$(NC)"; \
+	fi
+
+check: fmt vet lint test
+	@echo "$(GREEN)All checks passed$(NC)"
+
+## Docker commands
+docker-build:
+	@echo "$(GREEN)Building Docker image...$(NC)"
+	@docker build -t telemetryflow/order-service:$(VERSION) -t telemetryflow/order-service:latest .
+	@echo "$(GREEN)Docker image built$(NC)"
+
+docker-run: docker-build
+	@echo "$(GREEN)Running Docker container...$(NC)"
+	@docker run -p 8080:8080 --env-file .env telemetryflow/order-service:latest
+
+docker-compose-up:
+	@echo "$(GREEN)Starting all services...$(NC)"
+	@docker compose up -d
+
+docker-push: docker-build
+	@echo "$(GREEN)Pushing Docker image...$(NC)"
+	@docker push telemetryflow/order-service:$(VERSION)
+	@docker push telemetryflow/order-service:latest
+
+## Pipeline commands
+ci: deps check
+	@echo "$(GREEN)CI pipeline completed$(NC)"
+
+release-check:
+	@echo "$(GREEN)Checking release readiness...$(NC)"
+	@echo "$(YELLOW)1. Running tests...$(NC)"
+	@$(MAKE) test
+	@echo "$(YELLOW)2. Running linter...$(NC)"
+	@$(MAKE) lint
+	@echo "$(YELLOW)3. Building...$(NC)"
+	@$(MAKE) build
+	@echo "$(GREEN)Release checks passed$(NC)"
+
+docs:
+	@echo "$(GREEN)Documentation locations:$(NC)"
+	@echo "  - API Docs: http://localhost:8080/swagger/"
+	@echo "  - README: README.md"
+	@echo "  - Contributing: CONTRIBUTING.md"
+
+## Version info
+version:
+	@echo "$(GREEN)$(PRODUCT_NAME)$(NC)"
+	@echo "  Version:            $(VERSION)"
+	@echo "  TFO-Collector:      $(TFO_COLLECTOR_VERSION)"
+	@echo "  TFO-SDK:            $(TFO_SDK_VERSION)"
+	@echo "  OTEL Collector:     $(OTEL_VERSION)"
+	@echo "  OTEL Go SDK:        $(OTEL_GO_SDK_VERSION)"
+	@echo "  Git Commit:         $(GIT_COMMIT)"
+	@echo "  Git Branch:         $(GIT_BRANCH)"
+	@echo "  Build Time:         $(BUILD_TIME)"
+	@echo "  Go Version:         $(GO_VERSION)"
 
 
 .DEFAULT_GOAL := help

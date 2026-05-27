@@ -3,7 +3,7 @@
 # =============================================================================
 #
 # Order Service - TelemetryFlow Microservices Platform
-# Copyright (c) 2024-2026 DevOpsCorner Indonesia. All rights reserved.
+# Copyright (c) 2024-2026 Telemetri Data Indonesia. All rights reserved.
 #
 # This workflow provides continuous integration for Order Service:
 # - Code quality checks (lint, vet, fmt)
@@ -58,7 +58,7 @@ on:
         default: false
 
 env:
-  GO_VERSION: '1.24'
+  GO_VERSION: '1.26'
   PRODUCT_NAME: Order Service
   BINARY_NAME: Order-Service
   # Bypass Go proxy for TelemetryFlow private modules
@@ -82,13 +82,13 @@ jobs:
       deps_updated: ${{ steps.check-changes.outputs.changed }}
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           fetch-depth: 0
 
       - name: Set up Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
           go-version: ${{ env.GO_VERSION }}
           cache: true
@@ -134,7 +134,7 @@ jobs:
     if: ${{ !inputs.skip_lint && (always() && (needs.update-deps.result == 'success' || needs.update-deps.result == 'skipped')) }}
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           ref: ${{ github.ref }}
           fetch-depth: 0
@@ -144,7 +144,7 @@ jobs:
         run: git pull --rebase origin ${{ github.ref_name }} || true
 
       - name: Set up Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
           go-version: ${{ env.GO_VERSION }}
           cache: true
@@ -162,7 +162,7 @@ jobs:
         run: make staticcheck
 
       - name: Run golangci-lint
-        uses: golangci/golangci-lint-action@v7
+        uses: golangci/golangci-lint-action@v9
         with:
           version: v2.7.2
           args: --timeout=5m
@@ -179,7 +179,7 @@ jobs:
     if: always() && (needs.lint.result == 'success' || needs.lint.result == 'skipped')
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           ref: ${{ github.ref }}
           fetch-depth: 0
@@ -189,7 +189,7 @@ jobs:
         run: git pull --rebase origin ${{ github.ref_name }} || true
 
       - name: Set up Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
           go-version: ${{ env.GO_VERSION }}
           cache: true
@@ -201,7 +201,7 @@ jobs:
         run: make test-unit-ci
 
       - name: Upload unit test coverage
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: coverage-unit
           path: coverage-unit.out
@@ -232,7 +232,7 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           ref: ${{ github.ref }}
           fetch-depth: 0
@@ -242,7 +242,7 @@ jobs:
         run: git pull --rebase origin ${{ github.ref_name }} || true
 
       - name: Set up Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
           go-version: ${{ env.GO_VERSION }}
           cache: true
@@ -273,7 +273,7 @@ jobs:
           DB_SSL_MODE: disable
 
       - name: Upload integration test coverage
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: coverage-integration
           path: coverage-integration.out
@@ -304,7 +304,7 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           ref: ${{ github.ref }}
           fetch-depth: 0
@@ -314,7 +314,7 @@ jobs:
         run: git pull --rebase origin ${{ github.ref_name }} || true
 
       - name: Set up Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
           go-version: ${{ env.GO_VERSION }}
           cache: true
@@ -372,7 +372,7 @@ jobs:
             runner: windows-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           ref: ${{ github.ref }}
           fetch-depth: 0
@@ -383,7 +383,7 @@ jobs:
         run: git pull --rebase origin ${{ github.ref_name }} || true
 
       - name: Set up Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
           go-version: ${{ env.GO_VERSION }}
           cache: true
@@ -434,7 +434,7 @@ jobs:
           # Note: Binary requires database connection to run, verified in integration tests
 
       - name: Upload build artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: ${{ env.BINARY_NAME }}-${{ matrix.os }}-${{ matrix.arch }}
           path: build/${{ env.BINARY_NAME }}-${{ matrix.os }}-${{ matrix.arch }}*
@@ -450,7 +450,7 @@ jobs:
     if: always() && (needs.lint.result == 'success' || needs.lint.result == 'skipped')
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           ref: ${{ github.ref }}
           fetch-depth: 0
@@ -460,7 +460,7 @@ jobs:
         run: git pull --rebase origin ${{ github.ref_name }} || true
 
       - name: Set up Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
           go-version: ${{ env.GO_VERSION }}
           cache: true
@@ -492,22 +492,22 @@ jobs:
     if: always() && needs.test-unit.result == 'success'
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Set up Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
           go-version: ${{ env.GO_VERSION }}
           cache: true
 
       - name: Download unit coverage
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: coverage-unit
           path: coverage/
 
       - name: Download integration coverage
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: coverage-integration
           path: coverage/
@@ -530,7 +530,7 @@ jobs:
           mv coverage.html coverage/coverage.html
 
       - name: Upload coverage report
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: coverage-report
           path: coverage/
