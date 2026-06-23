@@ -1,6 +1,6 @@
 // Package traces provides telemetry tracing helpers.
 //
-// TelemetryFlow Order Service - Community Enterprise Observability Platform
+// TelemetryFlow Order Service - AI-Powered Observability & Incident Response Management (IRM) Platform
 // Copyright (c) 2024-2026 Telemetri Data Indonesia. All rights reserved.
 // Open Source Software built by Telemetri Data Indonesia.
 //

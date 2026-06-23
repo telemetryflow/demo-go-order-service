@@ -67,7 +67,7 @@ extensions:
   # Optional env vars: TELEMETRYFLOW_COLLECTOR_ID, TELEMETRYFLOW_COLLECTOR_NAME,
   #                    TELEMETRYFLOW_ENVIRONMENT, TELEMETRYFLOW_DATACENTER
   tfoidentity:
-    id: ""
+    id: "${env:TELEMETRYFLOW_COLLECTOR_ID}"
     name: "TelemetryFlow Collector"
     description: "TelemetryFlow Collector - AI-Powered Observability & Incident Response Management (IRM) Platform"
     tags:
@@ -97,12 +97,12 @@ receivers:
             timeout: 5s
       http:
         endpoint: "0.0.0.0:4318"
-        transport: tcp
         cors:
           allowed_origins:
             - "*"
           allowed_headers:
             - "*"
+          max_age: 7200
     # Enable v2 endpoints with authentication
     enable_v2_endpoints: true
     v2_auth:
@@ -133,12 +133,6 @@ processors:
     limit_percentage: 80
     spike_limit_percentage: 25
 
-  # Resource detection for automatic host/container enrichment
-  resourcedetection:
-    detectors: [env, system]
-    timeout: 5s
-    override: false
-
   # Resource processor for adding attributes
   # To customize environment: export TELEMETRYFLOW_ENVIRONMENT=staging
   resource:
@@ -147,67 +141,15 @@ processors:
         value: telemetryflow
         action: upsert
       - key: deployment.environment
-        value: "${env:TELEMETRYFLOW_ENVIRONMENT:-production}"
+        value: production
         action: upsert
 
-  # TFO-Agent: Normalize cAdvisor Prometheus-style metric names (container_* → container.cadvisor.*)
-  transform/cadvisor:
-    error_mode: ignore
-    metric_statements:
-      - context: metric
-        statements:
-          # CPU
-          - replace_pattern(name, "^container_cpu_usage_seconds_total$", "container.cadvisor.cpu.usage_seconds_total")
-          - replace_pattern(name, "^container_cpu_system_seconds_total$", "container.cadvisor.cpu.system_seconds_total")
-          - replace_pattern(name, "^container_cpu_user_seconds_total$", "container.cadvisor.cpu.user_seconds_total")
-          - replace_pattern(name, "^container_cpu_cfs_throttled_seconds_total$", "container.cadvisor.cpu.cfs.throttled_seconds_total")
-          - replace_pattern(name, "^container_cpu_cfs_periods_total$", "container.cadvisor.cpu.cfs.periods_total")
-          - replace_pattern(name, "^container_cpu_cfs_throttled_periods_total$", "container.cadvisor.cpu.cfs.throttled_periods_total")
-          # Memory
-          - replace_pattern(name, "^container_memory_usage_bytes$", "container.cadvisor.memory.usage_bytes")
-          - replace_pattern(name, "^container_memory_working_set_bytes$", "container.cadvisor.memory.working_set_bytes")
-          - replace_pattern(name, "^container_memory_rss$", "container.cadvisor.memory.rss_bytes")
-          - replace_pattern(name, "^container_memory_cache$", "container.cadvisor.memory.cache_bytes")
-          - replace_pattern(name, "^container_memory_swap$", "container.cadvisor.memory.swap_bytes")
-          - replace_pattern(name, "^container_memory_failures_total$", "container.cadvisor.memory.failures_total")
-          # Network
-          - replace_pattern(name, "^container_network_receive_bytes_total$", "container.cadvisor.network.receive_bytes_total")
-          - replace_pattern(name, "^container_network_transmit_bytes_total$", "container.cadvisor.network.transmit_bytes_total")
-          - replace_pattern(name, "^container_network_receive_errors_total$", "container.cadvisor.network.receive_errors_total")
-          - replace_pattern(name, "^container_network_transmit_errors_total$", "container.cadvisor.network.transmit_errors_total")
-          - replace_pattern(name, "^container_network_receive_packets_dropped_total$", "container.cadvisor.network.receive_drops_total")
-          - replace_pattern(name, "^container_network_transmit_packets_dropped_total$", "container.cadvisor.network.transmit_drops_total")
-          # Filesystem
-          - replace_pattern(name, "^container_fs_usage_bytes$", "container.cadvisor.fs.usage_bytes")
-          - replace_pattern(name, "^container_fs_limit_bytes$", "container.cadvisor.fs.limit_bytes")
-          - replace_pattern(name, "^container_fs_reads_bytes_total$", "container.cadvisor.fs.read_bytes_total")
-          - replace_pattern(name, "^container_fs_writes_bytes_total$", "container.cadvisor.fs.write_bytes_total")
-          # Machine
-          - replace_pattern(name, "^machine_cpu_cores$", "machine.cpu.cores")
-          - replace_pattern(name, "^machine_memory_bytes$", "machine.memory.bytes")
-          - replace_pattern(name, "^machine_cpu_cache_capacity_kilobytes$", "machine.cpu.cache.capacity_kilobytes")
-
-  # TFO-Agent: Normalize Cilium Hubble Prometheus-style metric names (hubble_* → hubble.*)
-  transform/hubble:
-    error_mode: ignore
-    metric_statements:
-      - context: metric
-        statements:
-          - replace_pattern(name, "^hubble_flows_processed_total$", "hubble.flows.processed_total")
-          - replace_pattern(name, "^hubble_drop_total$", "hubble.drop_total")
-          - replace_pattern(name, "^hubble_tcp_flags_total$", "hubble.tcp.flags_total")
-          - replace_pattern(name, "^hubble_dns_queries_total$", "hubble.dns.queries_total")
-          - replace_pattern(name, "^hubble_dns_responses_total$", "hubble.dns.responses_total")
-          - replace_pattern(name, "^hubble_http_requests_total$", "hubble.http.requests_total")
-          - replace_pattern(name, "^hubble_http_responses_total$", "hubble.http.responses_total")
-          - replace_pattern(name, "^hubble_http_request_duration_seconds$", "hubble.http.request_duration_seconds")
-
-  # TFO-Agent: Tag all agent-sourced telemetry for platform-side identification
-  attributes/agent:
-    actions:
-      - key: tfo.source
-        value: "tfo-agent"
-        action: insert
+  # Attributes processor (uncomment to enable)
+  # attributes:
+  #   actions:
+  #     - key: environment
+  #       action: insert
+  #       value: production
 
 # =============================================================================
 # CONNECTORS - Pipeline bridging for Exemplars and derived metrics
@@ -259,38 +201,54 @@ exporters:
     sampling_initial: 5
     sampling_thereafter: 200
 
-  # TFO Platform Exporter - forwards all telemetry + heartbeats to NestJS backend
-  # Uses tfoauth extension for authentication and tfoidentity for collector ID
-  # Endpoint resolved via env var: TELEMETRYFLOW_ENDPOINT (set in docker-compose)
-  #   - Docker "all" profile:         http://host.docker.internal:3000
-  #   - Docker "monitoring" profile:  http://host.docker.internal:3000
-  #   - Local development:            http://localhost:3000
-  tfo:
-    endpoint: "${env:TELEMETRYFLOW_ENDPOINT:-http://host.docker.internal:3000}"
-    use_v2_api: true
-    headers:
-      X-TelemetryFlow-Key-ID: "${env:TELEMETRYFLOW_API_KEY_ID}"
-      X-TelemetryFlow-Key-Secret: "${env:TELEMETRYFLOW_API_KEY_SECRET}"
-    collector_identity: tfoidentity
-    timeout: 30s
-    retry_on_failure:
+  # Prometheus exporter for metrics scraping (with exemplars support)
+  prometheus:
+    endpoint: "0.0.0.0:8889"
+    namespace: telemetryflow
+    const_labels:
+      collector: tfo-collector
+    send_timestamps: true
+    metric_expiration: 5m
+    enable_open_metrics: true
+    resource_to_telemetry_conversion:
       enabled: true
-      initial_interval: 5s
-      max_interval: 30s
-      max_elapsed_time: 300s
-    compression: gzip
 
-  # OTLP/HTTP exporter for Jaeger (v2 natively accepts OTLP on port 4318)
-  # otlphttp/jaeger:
-  #   endpoint: "http://jaeger:4318"
-  #   tls:
-  #     insecure: true
+  # OTLP exporter to Jaeger (native OTLP support in Jaeger v2.x)
+  otlp/jaeger:
+    endpoint: "jaeger:4317"
+    tls:
+      insecure: true
+
+  # TFO Platform Exporter - auto-injects TFO auth headers (uncomment to enable)
+  # Uses tfoauth extension for authentication and tfoidentity for collector ID
+  # tfo:
+  #   endpoint: "${env:TELEMETRYFLOW_ENDPOINT:-https://api.telemetryflow.id}"
+  #   use_v2_api: true
+  #   auth:
+  #     extension: tfoauth
+  #   collector_identity: tfoidentity
+  #   timeout: 30s
+  #   retry_on_failure:
+  #     enabled: true
+  #     initial_interval: 5s
+  #     max_interval: 30s
+  #     max_elapsed_time: 300s
+  #   sending_queue:
+  #     enabled: true
+  #     num_consumers: 10
+  #     queue_size: 1000
 
   # Standard OTLP exporter for other backends (uncomment to enable)
   # otlp:
   #   endpoint: "other-backend:4317"
   #   tls:
   #     insecure: true
+
+  # File exporter for logs
+  file/logs:
+    path: "/tmp/logs/Order-Service-logs.json"
+    format: json
+    flush_interval: 1s
 
   # File exporter for local storage (uncomment to enable)
   # file:
@@ -311,41 +269,32 @@ service:
   extensions: [health_check, zpages, pprof, tfoauth, tfoidentity]
 
   pipelines:
-    # Traces pipeline
+    # Traces pipeline - receives traces via TFO OTLP receiver
     traces:
       receivers: [tfootlp]
-      processors: [memory_limiter, resourcedetection, resource, attributes/agent, batch]
-      exporters: [debug, tfo, span_metrics, service_graph]
+      processors: [memory_limiter, batch, resource]
+      exporters: [debug, otlp/jaeger, span_metrics, service_graph]
 
-    # Metrics pipeline - receives ALL TFO-Agent collector metrics.
-    # Covers all 16 collectors: k8s-nodes, k8s-pods, k8s-deployments, k8s-workloads,
-    # k8s-storage, k8s-network, k8s-hpa, k8s-pdb, k8s-events, k8s-resource-counts,
-    # system, node-exporter, docker, cadvisor, ebpf (metrics), and app metrics.
+    # Metrics pipeline - receives metrics via TFO OTLP receiver
     metrics:
       receivers: [tfootlp]
-      processors:
-        - memory_limiter
-        - resourcedetection   # host context enrichment
-        - resource            # add service.namespace, deployment.environment
-        - transform/cadvisor  # normalize container_* / machine_* → container.cadvisor.* / machine.*
-        - transform/hubble    # normalize hubble_* → hubble.*
-        - attributes/agent    # tag with tfo.source=tfo-agent
-        - batch
-      exporters: [debug, tfo]
+      processors: [memory_limiter, batch, resource]
+      exporters: [debug, prometheus]
 
-    # Metrics from traces (exemplars)
+    # Metrics from traces pipeline - receives derived metrics from span_metrics connector
+    # These metrics include EXEMPLARS for correlation with traces
     metrics/span_metrics:
       receivers: [span_metrics]
-      processors: [memory_limiter, resource, batch]
-      exporters: [tfo]
+      processors: [memory_limiter, batch]
+      exporters: [prometheus]
 
-    # Service dependency graph metrics
+    # Metrics from service graph - receives service dependency metrics
     metrics/service_graph:
       receivers: [service_graph]
-      processors: [memory_limiter, resource, batch]
-      exporters: [tfo]
+      processors: [memory_limiter, batch]
+      exporters: [prometheus]
 
-    # Logs pipeline - pod container logs (k8s-pod-logs) + eBPF Hubble events
+    # Logs pipeline - exports to debug (stdout) and file
     logs:
       receivers: [tfootlp]
       processors:
@@ -354,7 +303,7 @@ service:
         - resource
         - attributes/agent
         - batch
-      exporters: [debug, tfo]
+      exporters: [debug, file/logs]
 
   # Internal telemetry configuration
   telemetry:

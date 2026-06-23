@@ -21,8 +21,6 @@
 
 ---
 
-
-
 ## Architecture
 
 This project follows **Domain-Driven Design (DDD)** with **CQRS (Command Query Responsibility Segregation)** pattern.

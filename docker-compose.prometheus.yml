@@ -1,0 +1,123 @@
+#================================================================================================
+# Order Service - Observability Stack (Jaeger + Prometheus)
+#
+# Standalone telemetry visualization layer, complementary to docker-compose.yml.
+# Pair with the TFO-Collector to get full traces (Jaeger) + metrics (Prometheus).
+#
+# USAGE:
+#   # Observability stack only (this file)
+#   docker-compose -f docker-compose.observability.yml --profile observability up -d
+#
+#   # Combine with the main stack (app + this observability layer)
+#   docker-compose -f docker-compose.yml -f docker-compose.observability.yml --profile app --profile observability up -d
+#
+# PORTS:
+#   - Jaeger UI:              http://localhost:16686
+#   - Jaeger OTLP gRPC:       localhost:14317  (remapped to avoid collector conflict)
+#   - Jaeger OTLP HTTP:       localhost:14318
+#   - Prometheus UI:          http://localhost:9090
+#
+# Copyright (c) 2024-2026 Telemetri Data Indonesia. All rights reserved.
+#================================================================================================
+
+#================================================================================================
+# NETWORK SETUP (reuses the same network as docker-compose.yml for interop)
+#================================================================================================
+networks:
+  order_service_net:
+    name: order_service_net
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.152.0.0/16
+
+#================================================================================================
+# VOLUME SETUP
+#================================================================================================
+volumes:
+  vol_prometheus_data:
+    driver: local
+  vol_jaeger_data:
+    driver: local
+
+#================================================================================================
+# SERVICES
+#================================================================================================
+services:
+
+  #----------------------------------------------------------------------------------------------
+  # JAEGER - Distributed Tracing UI & Storage (all-in-one)
+  #----------------------------------------------------------------------------------------------
+  # Receives traces via OTLP (gRPC/HTTP) from the TFO-Collector or directly from the app.
+  # Uses in-memory storage by default; suitable for development & demos.
+  #
+  # Jaeger UI: http://localhost:16686
+  #----------------------------------------------------------------------------------------------
+  jaeger:
+    profiles: ["observability", "all"]
+    platform: linux/amd64
+    image: jaegertracing/all-in-one:${JAEGER_VERSION:-1.62.0}
+    container_name: ${CONTAINER_JAEGER:-order_service_jaeger}
+    restart: unless-stopped
+    environment:
+      - TZ=${TZ:-UTC}
+      # Storage (in-memory for dev; switch to badger/elasticsearch/cassandra for prod)
+      - SPAN_STORAGE_TYPE=${SPAN_STORAGE_TYPE:-memory}
+      # OTLP ingestion enablement
+      - COLLECTOR_OTLP_ENABLED=true
+      # Sampling (all-in-one defaults to const=1 / sample everything)
+      - SAMPLING_STRATEGIES_FILE=/etc/jaeger/sampling_strategies.json
+    ports:
+      - "${PORT_JAEGER_UI:-16686}:16686"       # Jaeger UI
+      - "${PORT_JAEGER_OTLP_GRPC:-14317}:4317" # OTLP gRPC (remapped host port)
+      - "${PORT_JAEGER_OTLP_HTTP:-14318}:4318" # OTLP HTTP (remapped host port)
+      - "${PORT_JAEGER_AGENT:-6831}:6831/udp"  # Jaeger agent (compact thrift UDP)
+      - "${PORT_JAEGER_CONFIG:-5778}:5778"     # Sampling config HTTP
+    volumes:
+      - ./configs/jaeger/sampling_strategies.json:/etc/jaeger/sampling_strategies.json:ro
+      - vol_jaeger_data:/badger
+    networks:
+      order_service_net:
+        ipv4_address: ${CONTAINER_IP_JAEGER:-172.152.152.60}
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:14269/"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  #----------------------------------------------------------------------------------------------
+  # PROMETHEUS - Metrics Collection with Exemplars Support
+  #----------------------------------------------------------------------------------------------
+  # Scrapes the TFO-Collector's Prometheus exporter to ingest metrics + spanmetrics.
+  # Exemplars enable click-through from a metric sample to its trace in Jaeger/Grafana.
+  #
+  # Prometheus UI: http://localhost:9090
+  #----------------------------------------------------------------------------------------------
+  prometheus:
+    profiles: ["observability", "all"]
+    platform: linux/amd64
+    image: prom/prometheus:${PROMETHEUS_VERSION:-v3.4.0}
+    container_name: ${CONTAINER_PROMETHEUS:-order_service_prometheus}
+    restart: unless-stopped
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.enable-lifecycle'
+      - '--web.enable-remote-write-receiver'
+      - '--enable-feature=exemplar-storage'
+      - '--enable-feature=native-histograms'
+    ports:
+      - "${PORT_PROMETHEUS:-9090}:9090"
+    volumes:
+      - ./configs/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - vol_prometheus_data:/prometheus
+    networks:
+      order_service_net:
+        ipv4_address: ${CONTAINER_IP_PROMETHEUS:-172.152.152.50}
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:9090/-/healthy"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s

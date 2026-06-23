@@ -1,0 +1,25 @@
+{
+  "default_strategy": {
+    "type": "probabilistic",
+    "param": 1.0
+  },
+  "service_strategies": [
+    {
+      "service": "Order-Service",
+      "type": "probabilistic",
+      "param": 1.0,
+      "operation_strategies": [
+        {
+          "operation": "POST /api/v1/orders",
+          "type": "probabilistic",
+          "param": 1.0
+        },
+        {
+          "operation": "GET /api/v1/orders/:id",
+          "type": "probabilistic",
+          "param": 0.5
+        }
+      ]
+    }
+  ]
+}
