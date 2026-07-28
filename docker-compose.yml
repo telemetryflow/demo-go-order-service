@@ -144,7 +144,7 @@ services:
       - TELEMETRYFLOW_API_KEY_SECRET=${TELEMETRYFLOW_API_KEY_SECRET}
       - TELEMETRYFLOW_ENDPOINT=tfo-collector:4317
       - TELEMETRYFLOW_SERVICE_NAME=${TELEMETRYFLOW_SERVICE_NAME:-Order-Service}
-      - TELEMETRYFLOW_SERVICE_VERSION=${TELEMETRYFLOW_SERVICE_VERSION:-1.2.0}
+      - TELEMETRYFLOW_SERVICE_VERSION=${TELEMETRYFLOW_SERVICE_VERSION:-1.4.0}
       - TELEMETRYFLOW_INSECURE=${TELEMETRYFLOW_INSECURE:-true}
 
       # Logging
@@ -166,11 +166,11 @@ services:
       start_period: 40s
 
   #==============================================================================================
-  # MONITORING SERVICES (aligned with TFO-Platform)
+  # MONITORING SERVICES (aligned with TFO-demo)
   #==============================================================================================
 
   #----------------------------------------------------------------------------------------------
-  # TFO-COLLECTOR - TelemetryFlow Collector (OCB Native v1.2.1)
+  # TFO-COLLECTOR - TelemetryFlow Collector (OCB Native v1.3.0)
   #----------------------------------------------------------------------------------------------
   # Supports dual ingestion: v1 (OTEL standard) and v2 (TelemetryFlow enhanced)
   #
@@ -191,8 +191,8 @@ services:
     profiles: ["app", "monitoring", "all"]
     platform: linux/amd64
     # =============================================================================
-    # TelemetryFlow Collector (TFO-Collector) - Custom TFO format (v1.2.1)
-    image: telemetryflow/telemetryflow-collector:${TFO_COLLECTOR_VERSION:-1.2.1}
+    # TelemetryFlow Collector (TFO-Collector) - Custom TFO format (v1.3.0)
+    image: telemetryflow/telemetryflow-collector:${TFO_COLLECTOR_VERSION:-1.3.0}
     command: ["--config=/etc/tfo-collector/tfo-collector.yaml"]
     # =============================================================================
     # OTEL Collector Community Contributor (Standard OTEL format - uncomment to use)
@@ -267,13 +267,13 @@ services:
       start_period: 10s
 
   #==============================================================================================
-  # PLATFORM SERVICES (aligned with TFO-Platform monolith)
+  # PLATFORM SERVICES (aligned with TFO-demo monolith)
   #==============================================================================================
 
   #----------------------------------------------------------------------------------------------
   # POSTGRESQL - Platform Relational Data Storage (Config, Entities, IAM)
   #----------------------------------------------------------------------------------------------
-  tfo-platform-postgres:
+  tfo-demo-postgres:
     profiles: ["platform"]
     platform: linux/amd64
     image: postgres:${POSTGRES_VERSION:-16-alpine}
@@ -288,7 +288,7 @@ services:
       - POSTGRES_DB=${TFO_POSTGRES_DB:-telemetryflow_db}
       - PGDATA=/var/lib/postgresql/data/pgdata
     volumes:
-      - ${DATA_TFO_POSTGRESQL:-${VOLUMES_BASE_PATH:-/opt/data/docker/order-service}/tfo-platform/postgresql}:/var/lib/postgresql/data
+      - ${DATA_TFO_POSTGRESQL:-${VOLUMES_BASE_PATH:-/opt/data/docker/order-service}/tfo-demo/postgresql}:/var/lib/postgresql/data
     networks:
       order_service_net:
         ipv4_address: ${CONTAINER_IP_TFO_POSTGRES:-172.152.153.20}
@@ -302,10 +302,10 @@ services:
   #----------------------------------------------------------------------------------------------
   # CLICKHOUSE - Time-Series & Analytics Storage (Metrics, Logs, Traces, Audit)
   #----------------------------------------------------------------------------------------------
-  tfo-platform-clickhouse:
+  tfo-demo-clickhouse:
     profiles: ["platform"]
     platform: linux/amd64
-    image: clickhouse/clickhouse-server:${CLICKHOUSE_VERSION:-latest}
+    image: clickhouse/clickhouse-server:${CLICKHOUSE_VERSION:-26.7}
     container_name: ${CONTAINER_TFO_CLICKHOUSE:-order_service_tfo_platform_clickhouse}
     restart: unless-stopped
     ports:
@@ -317,8 +317,8 @@ services:
       - CLICKHOUSE_USER=${CLICKHOUSE_USER:-tfo_admin}
       - CLICKHOUSE_PASSWORD=${CLICKHOUSE_PASSWORD:-telemetryflow123}
     volumes:
-      - ${DATA_TFO_CLICKHOUSE:-${VOLUMES_BASE_PATH:-/opt/data/docker/order-service}/tfo-platform/clickhouse}/data:/var/lib/clickhouse
-      - ${DATA_TFO_CLICKHOUSE:-${VOLUMES_BASE_PATH:-/opt/data/docker/order-service}/tfo-platform/clickhouse}/logs:/var/log/clickhouse-server
+      - ${DATA_TFO_CLICKHOUSE:-${VOLUMES_BASE_PATH:-/opt/data/docker/order-service}/tfo-demo/clickhouse}/data:/var/lib/clickhouse
+      - ${DATA_TFO_CLICKHOUSE:-${VOLUMES_BASE_PATH:-/opt/data/docker/order-service}/tfo-demo/clickhouse}/logs:/var/log/clickhouse-server
     networks:
       order_service_net:
         ipv4_address: ${CONTAINER_IP_TFO_CLICKHOUSE:-172.152.153.40}
@@ -335,7 +335,7 @@ services:
   #   DB 1: L2 cache (prefix tf:cache:, TTL 1800s)
   #   DB 2: BullMQ queues (otlp-ingestion, domain-events, telemetry-processing, alerts, etc.)
   #----------------------------------------------------------------------------------------------
-  tfo-platform-redis:
+  tfo-demo-redis:
     profiles: ["platform"]
     platform: linux/amd64
     image: redis:${REDIS_VERSION:-7-alpine}
@@ -350,7 +350,7 @@ services:
       --appendonly yes
       --appendfsync everysec
     volumes:
-      - ${DATA_TFO_REDIS:-${VOLUMES_BASE_PATH:-/opt/data/docker/order-service}/tfo-platform/redis}:/data
+      - ${DATA_TFO_REDIS:-${VOLUMES_BASE_PATH:-/opt/data/docker/order-service}/tfo-demo/redis}:/data
     networks:
       order_service_net:
         ipv4_address: ${CONTAINER_IP_TFO_REDIS:-172.152.153.50}
@@ -365,7 +365,7 @@ services:
   # NATS - Cross-Module Domain Event Messaging
   #   JetStream enabled for durable message delivery
   #----------------------------------------------------------------------------------------------
-  tfo-platform-nats:
+  tfo-demo-nats:
     profiles: ["platform"]
     platform: linux/amd64
     image: nats:${NATS_VERSION:-2-alpine}
@@ -376,7 +376,7 @@ services:
       - "${PORT_NATS_MONITOR:-8222}:8222"  # HTTP monitoring
     command: ["--js", "--sd", "/data", "-m", "8222"]
     volumes:
-      - ${DATA_TFO_NATS:-${VOLUMES_BASE_PATH:-/opt/data/docker/order-service}/tfo-platform/nats}:/data
+      - ${DATA_TFO_NATS:-${VOLUMES_BASE_PATH:-/opt/data/docker/order-service}/tfo-demo/nats}:/data
     networks:
       order_service_net:
         ipv4_address: ${CONTAINER_IP_TFO_NATS:-172.152.153.55}
@@ -406,21 +406,21 @@ services:
       - TZ=${TZ:-UTC}
 
       # PostgreSQL
-      - POSTGRES_HOST=tfo-platform-postgres
+      - POSTGRES_HOST=tfo-demo-postgres
       - POSTGRES_PORT=5432
       - POSTGRES_DB=${TFO_POSTGRES_DB:-telemetryflow_db}
       - POSTGRES_USERNAME=${TFO_POSTGRES_USERNAME:-tfo_admin}
       - POSTGRES_PASSWORD=${TFO_POSTGRES_PASSWORD:-telemetryflow123}
 
       # ClickHouse
-      - CLICKHOUSE_HOST=tfo-platform-clickhouse
+      - CLICKHOUSE_HOST=tfo-demo-clickhouse
       - CLICKHOUSE_PORT=8123
       - CLICKHOUSE_DB=${CLICKHOUSE_DB:-telemetryflow_db}
       - CLICKHOUSE_USER=${CLICKHOUSE_USER:-tfo_admin}
       - CLICKHOUSE_PASSWORD=${CLICKHOUSE_PASSWORD:-telemetryflow123}
 
       # Redis (Cache L2 + Session + BullMQ)
-      - REDIS_HOST=tfo-platform-redis
+      - REDIS_HOST=tfo-demo-redis
       - REDIS_PORT=6379
       - REDIS_PASSWORD=${REDIS_PASSWORD:-}
       - REDIS_MAX_MEMORY=${REDIS_MAX_MEMORY:-512mb}
@@ -429,7 +429,7 @@ services:
       - REDIS_DB_BULLMQ=2
 
       # NATS (Domain Events)
-      - NATS_URL=nats://tfo-platform-nats:4222
+      - NATS_URL=nats://tfo-demo-nats:4222
 
       # BullMQ
       - ENABLE_BULLMQ=${ENABLE_BULLMQ:-true}
@@ -456,13 +456,13 @@ services:
     volumes:
       - ./logs:/app/logs
     depends_on:
-      tfo-platform-postgres:
+      tfo-demo-postgres:
         condition: service_healthy
-      tfo-platform-clickhouse:
+      tfo-demo-clickhouse:
         condition: service_healthy
-      tfo-platform-redis:
+      tfo-demo-redis:
         condition: service_healthy
-      tfo-platform-nats:
+      tfo-demo-nats:
         condition: service_healthy
     networks:
       order_service_net:
